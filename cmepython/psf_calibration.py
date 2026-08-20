@@ -73,6 +73,7 @@ def fit_gmm_1d(x, n_components, n_iter=200, tol=1e-7, seed=0):
     w = np.full(n_components, 1.0 / n_components)
 
     prev = -np.inf
+    converged = True
     for _ in range(n_iter):
         # E-krok
         sd = np.maximum(sd, 1e-6)
@@ -95,11 +96,25 @@ def fit_gmm_1d(x, n_components, n_iter=200, tol=1e-7, seed=0):
         mu = (resp * x[:, None]).sum(axis=0) / nk
         var = (resp * (x[:, None] - mu[None, :]) ** 2).sum(axis=0) / nk
         sd = np.sqrt(np.maximum(var, 1e-12))
+    else:
+        converged = False
+
+    # `prev` pochazi z parametru PRED poslednim M-krokem. Kdyz se rozpocet
+    # iteraci vycerpa bez konvergence, je podhodnoceny a BIC vyjde prilis
+    # velky -- coz muze prehodit vyber poctu komponent. Prepocitame ho
+    # z finalnich parametru.
+    sd = np.maximum(sd, 1e-6)
+    z = (x[:, None] - mu[None, :]) / sd[None, :]
+    logp = (-0.5 * z ** 2 - np.log(sd[None, :]) - 0.5 * np.log(2 * np.pi)
+            + np.log(np.maximum(w[None, :], 1e-300)))
+    mmax = logp.max(axis=1, keepdims=True)
+    loglik = float((mmax[:, 0] + np.log(np.exp(logp - mmax).sum(axis=1))).sum())
 
     # BIC: k = (n_components-1) vah + n_components mu + n_components sigma
     k = 3 * n_components - 1
-    bic = -2.0 * prev + k * np.log(n)
-    return dict(weights=w, mu=mu, sigma=sd, bic=float(bic), loglik=float(prev))
+    bic = -2.0 * loglik + k * np.log(n)
+    return dict(weights=w, mu=mu, sigma=sd, bic=float(bic), loglik=loglik,
+                converged=converged)
 
 
 # --------------------------------------------------------------------------
@@ -156,6 +171,26 @@ def sigmas_from_frame(img, sigma_probe=SIGMA_PROBE, alpha=0.05, max_spots=600):
 # Hlavni vstup
 # --------------------------------------------------------------------------
 
+def _detail_or_value(sigma, svect, model, best_n, per_frame, return_detail,
+                     fallback=True):
+    """Navrat pri fallbacku na prumer -- getGaussianPSFsigmaFromData.m:117-119."""
+    import warnings
+    if fallback:
+        warnings.warn(
+            "estimate_psf_sigma: GMM nedal pouzitelnou komponentu, "
+            f"vracim prumer {sigma:.4f} px (MATLAB dela totez, "
+            "getGaussianPSFsigmaFromData.m:118)", RuntimeWarning, stacklevel=3)
+    if not return_detail:
+        return sigma
+    return sigma, dict(
+        sigma=sigma, n_spots=int(svect.size),
+        n_components=best_n, bic={} if model is None else {best_n: model["bic"]},
+        components=[], median=float(np.median(svect)),
+        iqr=(float(np.percentile(svect, 25)), float(np.percentile(svect, 75))),
+        spots_per_frame=per_frame, fallback_mean=True,
+    )
+
+
 def estimate_psf_sigma(frames, sigma_probe=SIGMA_PROBE, alpha=0.05,
                        max_spots=600, return_detail=False):
     """Odhad sigma PSF ze seznamu snimku (2D numpy poli).
@@ -185,15 +220,33 @@ def estimate_psf_sigma(frames, sigma_probe=SIGMA_PROBE, alpha=0.05,
         m = fit_gmm_1d(svect, n)
         if m is not None:
             models[n] = m
+    if not models:
+        return _detail_or_value(float(np.mean(svect)), svect, None, None,
+                                per_frame, return_detail)
     best_n = min(models, key=lambda n: models[n]["bic"])
     m = models[best_n]
+
+    # getGaussianPSFsigmaFromData.m:75,117-119 -- MATLAB obaluje cely GMM blok
+    # do try/catch a pri jakekoli chybe vraci mean(svect). Nejcastejsi pricina
+    # je "ill-conditioned covariance", tedy komponenta zkolabovana na par bodu.
+    # Zde by takova komponenta byla obzvlast nebezpecna: pravidlo na :85 vybira
+    # podle VYSKY vrcholu, a sd u dolni meze da vysku, kterou zadny realny mod
+    # neprekona. Takove komponenty proto zahazujeme a pri absenci pouzitelne
+    # padame na prumer.
+    mass = m["weights"] * svect.size
+    usable = (m["sigma"] > 1.1e-6) & (mass >= 3.0)
+    if not usable.any():
+        return _detail_or_value(float(np.mean(svect)), svect, m, best_n,
+                                per_frame, return_detail)
 
     # :85 -- komponenta s NEJVYSSIM VRCHOLEM HUSTOTY, ne s nejvetsi vahou.
     # MATLAB: [~,idx] = max(amp./(sqrt(2*pi)*svec))
     order = np.argsort(m["mu"])
     mu, sd, w = m["mu"][order], m["sigma"][order], m["weights"][order]
+    ok = usable[order]
     peak = w / (np.sqrt(2 * np.pi) * np.maximum(sd, 1e-12))
-    idx = int(np.argmax(peak))
+    peak_masked = np.where(ok, peak, -np.inf)
+    idx = int(np.argmax(peak_masked))
     sigma = float(mu[idx])
 
     if not return_detail:

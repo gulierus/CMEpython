@@ -27,6 +27,7 @@ import tifffile
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from cmepython.psf_calibration import estimate_psf_sigma, apply_sigma_clamp  # noqa: E402
+from cmepython.measure import movie_layout  # noqa: E402
 
 TOTAL_FRAMES = 40          # runDetection.m:66 -- celkovy rozpocet snimku
 CHANNELS = (0, 1, 2)
@@ -41,9 +42,9 @@ def frame_indices(n_movies, movie_length):
 def load_frames(args):
     path, channel, n_movies = args
     with tifffile.TiffFile(path) as tf:
-        T, C, Y, X = tf.series[0].shape
+        T, C, Y, X, page = movie_layout(tf)
         idx = frame_indices(n_movies, T)
-        return [tf.pages[t * C + channel].asarray().astype(np.float64) for t in idx]
+        return [tf.pages[page(t, channel)].asarray().astype(np.float64) for t in idx]
 
 
 def main(folder):

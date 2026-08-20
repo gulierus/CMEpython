@@ -22,8 +22,8 @@ from cmepython import (
     measure_movie,
     estimate_psf_sigma,
     apply_sigma_clamp,
-    detect_candidates,
 )
+from cmepython.psf_calibration import detect_candidates
 from cmepython.psf_calibration import fit_gmm_1d
 
 SIGMA_S, SIGMA_M, BG = 2.0, 1.4, 100.0
@@ -217,8 +217,7 @@ def test_scale_edfs_reference_max():
 
 def test_interp_edf_okrajove_chovani():
     """scaleEDFs.m:237-241 -- pod rozsahem 0, nad rozsahem 1."""
-    from cmepython import ecdf
-    from cmepython.edf_scaling import interp_edf
+    from cmepython.edf_scaling import ecdf, interp_edf
     F, x = ecdf(np.array([10.0, 20.0, 30.0]))
     f = interp_edf(x, F, np.array([0.0, 5.0, 15.0, 25.0, 100.0]))
     assert f[0] == 0.0
@@ -232,3 +231,89 @@ def test_apply_scaling_je_ciste_multiplikativni():
     from cmepython import apply_scaling
     v = np.array([100.0, 200.0])
     assert np.allclose(apply_scaling(v, 2.5), [250.0, 500.0])
+
+
+# ------------------------------------------------- opravy z auditu portu
+
+def test_ecdf_sluci_shodne_hodnoty():
+    """MATLAB ecdf je Kaplan-Meier na RUZNYCH hodnotach -- duplicity slucuje.
+
+    Bez toho ma interpolant v miste duplicit svisly usek navic a kvantilova
+    funkce pouzita pri vyberu reference vraci jinou hodnotu.
+    """
+    from cmepython.edf_scaling import ecdf
+    F, x = ecdf(np.array([1.0, 2.0, 2.0, 3.0]))
+    assert len(x) == 4                      # 0 + tri RUZNE hodnoty
+    assert np.allclose(x, [1.0, 1.0, 2.0, 3.0])
+    assert np.allclose(F, [0.0, 0.25, 0.75, 1.0])
+
+
+def test_interp_edf_same_nan_vraci_jednicky():
+    """scaleEDFs.m:239-240 -- kdyz je vse NaN, MATLAB nastavi cele pole na 1."""
+    from cmepython.edf_scaling import ecdf, interp_edf
+    F, x = ecdf(np.array([10.0, 20.0]))
+    f = interp_edf(x, F, np.array([1e6, 2e6, 3e6]))   # cely mimo rozsah nahoru
+    assert f[0] == 0.0
+    assert np.all(f[1:] == 1.0)
+
+
+def test_gap_cesta_nema_npx_prah():
+    """interpTrack (runTrackProcessing.m:879-926) zadny npx gate nema.
+
+    Kdyz maska zakryje vetsinu okna, detekcni cesta vrati NaN, ale gap cesta
+    musi vratit amplitudu -- MATLAB ji zapisuje bezpodminecne (:911).
+    """
+    from cmepython import dynamin_intensity_gap
+    from cmepython.slave_intensity import fit_gaussian_2d_point
+    img = synth_frame([(32.0, 32.0)], amplitude=800.0)
+    # maska nechavajici jen par pixelu: vse krome uzkeho pruhu je "soused"
+    labels = np.ones_like(img, dtype=int) * 2
+    labels[30:34, 30:34] = 0                 # centralni komponenta = pozadi
+    labels[32, 32] = 0
+
+    det = fit_gaussian_2d_point(img, 32.0, 32.0, SIGMA_S, mode="xyAc",
+                                labels=labels)
+    gap = dynamin_intensity_gap(img[None, ...], 0, 32.0, 32.0,
+                                sigma_slave=SIGMA_S, sigma_master=SIGMA_M,
+                                A_init=700.0, c_init=BG, labels=labels)
+    assert not det["valid"]                  # detekcni cesta: npx < 10 -> NaN
+    assert np.isfinite(gap["A"])             # gap cesta: vzdy amplituda
+
+
+def test_gap_cesta_nevraci_pole_ktera_interptrack_nedela():
+    """interpTrack vraci deset poli; hval_Ar, mask_Ar, RSS, s, x_pstd, y_pstd
+    mezi ne nepatri a v ProcessedTracks.mat zustavaji NaN."""
+    from cmepython import dynamin_intensity_gap
+    img = synth_frame([(32.0, 32.0)], amplitude=600.0)
+    r = dynamin_intensity_gap(img[None, ...], 0, 32.0, 32.0,
+                              sigma_slave=SIGMA_S, sigma_master=SIGMA_M,
+                              A_init=500.0, c_init=BG)
+    assert np.isfinite(r["A"]) and np.isfinite(r["pval_Ar"])
+    for f in ("hval_Ar", "mask_Ar", "RSS", "s", "x_pstd", "y_pstd"):
+        assert np.isnan(r[f]), f
+
+
+def test_gmm_bic_z_finalnich_parametru():
+    """Loglik se musi pocitat po posledni M-krok, jinak je BIC pri vycerpani
+    iteraci nadhodnoceny a muze prehodit vyber poctu komponent."""
+    from cmepython.psf_calibration import fit_gmm_1d
+    rng = np.random.default_rng(9)
+    x = np.concatenate([rng.normal(1.3, 0.12, 800), rng.normal(2.7, 0.25, 500)])
+    slow = fit_gmm_1d(x, 2, n_iter=3)        # zamerne malo iteraci
+    full = fit_gmm_1d(x, 2, n_iter=500)
+    assert slow["converged"] is False
+    assert full["converged"] is True
+    # loglik odpovida vracenym parametrum, ne tem o krok zpet
+    for m in (slow, full):
+        z = (x[:, None] - m["mu"][None, :]) / m["sigma"][None, :]
+        lp = (-0.5*z**2 - np.log(m["sigma"][None, :]) - 0.5*np.log(2*np.pi)
+              + np.log(m["weights"][None, :]))
+        mx = lp.max(axis=1, keepdims=True)
+        ll = float((mx[:, 0] + np.log(np.exp(lp - mx).sum(axis=1))).sum())
+        assert ll == pytest.approx(m["loglik"], rel=1e-9)
+
+
+def test_movie_layout_je_verejny():
+    """Skripty ho musi volat misto rucniho rozbaleni shape."""
+    from cmepython import movie_layout
+    assert callable(movie_layout)

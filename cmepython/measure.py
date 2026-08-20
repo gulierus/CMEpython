@@ -34,7 +34,8 @@ import numpy as np
 
 from .slave_intensity import dynamin_intensity
 
-__all__ = ["measure_frame", "measure_coords", "measure_movie", "FIELDS"]
+__all__ = ["measure_frame", "measure_coords", "measure_movie",
+           "movie_layout", "FIELDS"]
 
 # Pole vracena `dynamin_intensity`, ktera davkujeme do poli.
 FIELDS = ("A", "c", "x", "y", "s", "A_pstd", "c_pstd", "sigma_r",
@@ -107,7 +108,7 @@ def measure_coords(video, coords, sigma_slave, sigma_master, **kw):
     return out
 
 
-def _movie_layout(tf):
+def movie_layout(tf):
     """Zjisti (T, C, Y, X) a mapovani (t, c) -> cislo stranky.
 
     tifffile hlasi ruzne poradi os podle toho, co soubor obsahuje a jaka
@@ -159,7 +160,7 @@ def _one_frame(args):
     (path, t, channel, ys, xs, sigma_slave, sigma_master, kw) = args
     import tifffile
     with tifffile.TiffFile(path) as tf:
-        _, _, _, _, idx = _movie_layout(tf)
+        _, _, _, _, idx = movie_layout(tf)
         img = tf.pages[idx(t, channel)].asarray().astype(np.float64)
     return t, measure_frame(img, ys, xs, sigma_slave, sigma_master, **kw)
 
@@ -191,7 +192,7 @@ def measure_movie(path, coords, sigma_slave, sigma_master,
         raise ValueError("coords musi mit tvar (N, 3) -- [frame, y, x]")
 
     with tifffile.TiffFile(path) as tf:
-        T, C, Y, X, _ = _movie_layout(tf)
+        T, C, Y, X, _ = movie_layout(tf)
     if not (0 <= slave_channel < C):
         raise ValueError(f"slave_channel {slave_channel} mimo rozsah (film ma {C} kanalu)")
 
@@ -206,7 +207,7 @@ def measure_movie(path, coords, sigma_slave, sigma_master,
     # Testovat `if not workers` by nulu chybne poslalo do serialni vetve.
     if workers is None or workers == 1:
         with tifffile.TiffFile(path) as tf:
-            _, _, _, _, idx = _movie_layout(tf)
+            _, _, _, _, idx = movie_layout(tf)
             for t, sel in groups:
                 img = tf.pages[idx(t, slave_channel)].asarray().astype(np.float64)
                 part = measure_frame(img, coords[sel, 1], coords[sel, 2],

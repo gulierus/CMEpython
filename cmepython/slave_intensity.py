@@ -108,7 +108,8 @@ def fit_gaussian_2d_point(img, x, y, sigma, mode="Ac",
                           A_init=None, c_init=None,
                           labels=None, i_range=None,
                           alpha=0.05, alpha_t=0.05,
-                          conf_radius=None, window_size=None):
+                          conf_radius=None, window_size=None,
+                          min_npx=10):
     """Port fitGaussians2D.m (soubor cmeAnalysis/software/fitGaussians2D.m) pro
     jediny bod.
 
@@ -193,8 +194,12 @@ def fit_gaussian_2d_point(img, x, y, sigma, mode="Ac",
     finite = np.isfinite(window)
     npx = int(finite.sum())
 
-    # fitGaussians2D.m:183
-    if npx < 10:
+    # fitGaussians2D.m:183. Plati jen pro DETEKCNI cestu -- interpTrack
+    # (runTrackProcessing.m:879-926) zadny takovy prah nema, spocte npx
+    # a rovnou fituje. Proto je to parametr, ne konstanta: gap/buffer cesta
+    # predava min_npx=0, jinak by v oknech prekrytych sousedni detekci
+    # vracela NaN tam, kde MATLAB vraci amplitudu.
+    if npx < int(min_npx):
         return _nan_result(npx)
 
     # fitGaussians2D.m:186-190. MATLAB max(window(:)) ignoruje NaN -> nanmax.
@@ -471,6 +476,22 @@ def dynamin_intensity(video, frame, y, x, sigma_slave, sigma_master=None,
 # Verejne API: gap / buffer varianta (interpTrack)
 # --------------------------------------------------------------------------
 
+
+# interpTrack vraci JEN deset poli (runTrackProcessing.m:896-926):
+# x, y, A, c, A_pstd, c_pstd, sigma_r, SE_sigma_r, hval_AD, pval_Ar.
+# hval_Ar, mask_Ar, RSS, s, x_pstd a y_pstd tam nikdy nevzniknou a
+# mergeStructs (:930-935) je proto nechava na NaN z predalokace (:341-343).
+# Kdybychom je vraceli, volajici by pro gap a buffer snimky cetl True/False
+# tam, kde ProcessedTracks.mat drzi NaN.
+_NOT_IN_INTERPTRACK = ("hval_Ar", "mask_Ar", "RSS", "s", "x_pstd", "y_pstd")
+
+
+def _interp_track_fields(res):
+    for field in _NOT_IN_INTERPTRACK:
+        res[field] = np.nan
+    return res
+
+
 def dynamin_intensity_gap(video, frame, y, x, sigma_slave, sigma_master,
                           A_init, c_init, labels=None, alpha=0.05):
     """Port interpTrack (runTrackProcessing.m:879-926) -- varianta pouzita
@@ -512,19 +533,19 @@ def dynamin_intensity_gap(video, frame, y, x, sigma_slave, sigma_master,
     res = fit_gaussian_2d_point(img, x, y, sigma_slave, mode="xyAc",
                                 A_init=A_init, c_init=c_init, labels=labels,
                                 i_range=huge, alpha=alpha,
-                                conf_radius=w2, window_size=w4)
+                                conf_radius=w2, window_size=w4, min_npx=0)
     if res["valid"]:
-        return res
+        return _interp_track_fields(res)
 
     # fallback 'Ac' se stejnym seedem, pozice se vraci NEZMENENA (ps.x = x,
     # nikoli xi -- runTrackProcessing.m:906-907)
     res = fit_gaussian_2d_point(img, x, y, sigma_slave, mode="Ac",
                                 A_init=A_init, c_init=c_init, labels=labels,
                                 i_range=huge, alpha=alpha,
-                                conf_radius=w2, window_size=w4)
+                                conf_radius=w2, window_size=w4, min_npx=0)
     if res["valid"]:
         res["x"], res["y"] = float(x), float(y)
-    return res
+    return _interp_track_fields(res)
 
 
 # --------------------------------------------------------------------------

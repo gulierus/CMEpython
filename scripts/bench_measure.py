@@ -8,7 +8,8 @@
 import os, sys, time
 import numpy as np, tifffile
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from cmepython import measure_movie, detect_candidates
+from cmepython import measure_movie, movie_layout
+from cmepython.psf_calibration import detect_candidates
 
 P = "reconstructed registered/U2OS_DYNAMIN_MSTAYGOLD_GREEN_SNAP_CLC_RED_DNMsiRNA_16_RR.tif"
 S_SLAVE, S_MASTER = 2.6424, 1.4187
@@ -16,10 +17,10 @@ S_SLAVE, S_MASTER = 2.6424, 1.4187
 def main():
     print(f"CPU jader: {os.cpu_count()}\n")
     with tifffile.TiffFile(P) as tf:
-        T, C, Y, X = tf.series[0].shape
+        T, C, Y, X, page = movie_layout(tf)
         coords = []
         for t in range(0, 60, 2):
-            ys, xs = detect_candidates(tf.pages[t*C+0].asarray(), S_MASTER, k=5.0, max_spots=250)
+            ys, xs = detect_candidates(tf.pages[page(t, 0)].asarray(), S_MASTER, k=5.0, max_spots=250)
             coords += [[t, y, x] for y, x in zip(ys, xs)]
     coords = np.array(coords, float)
     print(f"{len(coords)} detekci pres {len(np.unique(coords[:,0]))} snimku")

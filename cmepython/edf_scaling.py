@@ -33,6 +33,8 @@ Zavislosti: numpy, scipy.
 
 from __future__ import annotations
 
+import warnings
+
 import numpy as np
 from scipy.optimize import least_squares
 
@@ -45,12 +47,17 @@ def ecdf(samples):
     Vraci (F, x), obe delky n+1, s vedoucim bodem F[0] = 0 a x[0] = x[1]
     -- proto se v `interp_edf` prvni prvek preskakuje.
     """
-    s = np.sort(np.asarray(samples, dtype=float).ravel())
+    s = np.asarray(samples, dtype=float).ravel()
     s = s[np.isfinite(s)]
     if s.size == 0:
         raise ValueError("prazdny vzorek")
-    F = np.arange(1, s.size + 1, dtype=float) / s.size
-    return np.concatenate([[0.0], F]), np.concatenate([[s[0]], s])
+    # MATLAB ecdf je Kaplan-Meier na RUZNYCH hodnotach -- shodne pozorovani
+    # slucuje do jednoho radku. Bez toho ma interpolant v miste duplicit
+    # svisly usek navic a kvantilova funkce (pouzita pri vyberu reference)
+    # vraci jinou hodnotu.
+    xu, counts = np.unique(s, return_counts=True)
+    F = np.cumsum(counts).astype(float) / s.size
+    return np.concatenate([[0.0], F]), np.concatenate([[xu[0]], xu])
 
 
 def interp_edf(x_edf, f_edf, x):
@@ -63,7 +70,9 @@ def interp_edf(x_edf, f_edf, x):
 
     valid = np.nonzero(~np.isnan(f))[0]
     if valid.size == 0:
-        return np.concatenate([[0.0], np.zeros_like(f)])
+        # MATLAB :239 v tomto pripade neprepise nic (prazdny rozsah) a :240
+        # pak nastavi CELE pole na 1. Nulami by to bylo obracene.
+        return np.concatenate([[0.0], np.ones_like(f)])
     f[:valid[0]] = 0.0                       # :239 -- pod rozsahem
     nan_after = np.nonzero(np.isnan(f))[0]
     if nan_after.size:
@@ -115,7 +124,11 @@ def scale_edfs(samples, reference="med", ref_samples=None):
 
     F, x = zip(*[ecdf(s) for s in samples])
     pooled = np.concatenate(samples)
-    x0 = np.linspace(np.percentile(pooled, 1), np.percentile(pooled, 99), 1000)  # :79
+    # :79 -- MATLAB prctile pouziva stredove pozice (i-0.5)/n, coz numpy zna
+    # jako method='hazen'. Vychozi numpy konvence ('linear', (i-1)/(n-1))
+    # posouva oba konce mrizky, u malych vzorku i o jednotky procent.
+    x0 = np.linspace(np.percentile(pooled, 1, method="hazen"),
+                     np.percentile(pooled, 99, method="hazen"), 1000)
 
     if ref_samples is None:
         ref_idx = _select_reference(samples, F, x, reference)
@@ -152,7 +165,14 @@ def scale_edfs(samples, reference="med", ref_samples=None):
                                 bounds=([1e-12, -1.0], [np.inf, 1.0]),
                                 xtol=1e-6, ftol=1e-6, max_nfev=10000)
             a[i], c[i] = float(sol.x[0]), float(sol.x[1])
-        except Exception:
+        except Exception as exc:
+            # MATLAB zadny fallback nema -- selhani lsqnonlin je chyba.
+            # Nechavame beh pokracovat, ale hlasime to: jinak by film tise
+            # dostal hruby pomer medianu misto EDF-optimalniho faktoru
+            # a vracene c=0 by slo zamenit za skutecnou nulu.
+            warnings.warn(f"scale_edfs: fit pro vzorek {i} selhal "
+                          f"({type(exc).__name__}), pouzivam pomer medianu "
+                          f"a={a0:.4f}", RuntimeWarning, stacklevel=2)
             a[i], c[i] = a0, 0.0
 
     return a, c, ref_idx
