@@ -1,10 +1,31 @@
+# Python
 __pycache__/
 *.py[cod]
 .venv/
 venv/
 .env
 .ipynb_checkpoints/
-.DS_Store
 *.egg-info/
 build/
 dist/
+.pytest_cache/
+
+# macOS
+.DS_Store
+
+# Upstream MATLAB reference (klonuj zvlast, viz README)
+cmeAnalysis/
+
+# Data -- desitky GB, nepatri do gitu
+*.tif
+*.tiff
+reconstructed registered/
+trajectories/
+measured/
+
+# Publisher PDF, jen pro lokalni cteni
+Aguet13.pdf
+mmc1.pdf
+
+# Kalibrace sirky PSF se COMMITUJE -- bez ni jsou hodnoty v README
+# a ve skriptech neoveritelne magicke konstanty.
