@@ -74,12 +74,19 @@ python3 scripts/measure_trajectories.py
 ```
 
 **3. Škálování napříč filmy** srovná systematické rozdíly mezi filmy
-(expozice, exprese, bleaching) před poolováním:
+před poolováním:
 
 ```python
 from cmepython import scale_edfs
 a, c, ref = scale_edfs([max_amplitudy_filmu_1, max_amplitudy_filmu_2, ...])
 ```
+
+> **Rozmyslete si, jestli ho chcete.** Na tomto datasetu je rozptyl mezi filmy
+> biologický, ne technický: dynamin kolísá 17,2× (CV 77 %), zatímco clathrin
+> jen 1,53× (CV 12 %) a obojí spolu nekoreluje (r = −0,02). Kdyby šlo o
+> expozici nebo gain, kolísal by clathrin stejně. Škálování by tedy smazalo
+> právě ten efekt, který se měří — u siRNA knockdownu se účinnost liší buňka
+> od buňky. Porovnejte výsledky s ním i bez něj.
 
 ## Co přesně reprodukuje
 
@@ -109,6 +116,25 @@ nemá ani korekci offsetu kamery, ani korekci bleachingu.
 **Prázdné místo nevrací chybu, ale číslo blízko nule.** Měření a rozhodnutí,
 jestli tam dynamin je, jsou oddělené kroky; nevýznamnost se pozná z
 `pval_Ar`, ne z `NaN`. `NaN` znamená jen, že se okno nevešlo do snímku.
+
+**Photobleaching je reálný, ale menší, než se zdá.** Po kontrole na délku
+dráhy a vyloučení drah useknutých koncem filmu zbývá pokles −18 % až −28 %
+přes film, soustředěný do prvních ~30 snímků. Pozadí přitom klesne jen o
+12 % a celý snímek o 8 % — vyhasíná vázaná frakce, zatímco volný pool se
+doplňuje difuzí. cmeAnalysis korekci nemá a tento port ji také nezavádí:
+spolehlivější je zahrnout čas vzniku dráhy jako kovariátu než hodnoty
+upravovat a riskovat, že se s bleachingem odečte i biologie.
+
+**Test významnosti je konzervativní, ne liberální.** Netestuje „je tam
+signál", ale „je tam signál silnější než 1,96 σ šumu". Změřeno na prázdných
+pozicích: 0,97 % falešně pozitivních při nominální hladině 5 %. Na pozicích
+clathrinu prohlásí za významných 23,5 %. Pro slabý dynamin je to záměrně
+přísné.
+
+Související: měřicí kanál tohoto datasetu je 2× zvětšený, takže sousední
+pixely nemají nezávislý šum (τ = 2,81). Korekce na efektivní počet pixelů
+byla změřena a **nepřehodila ani jedno rozhodnutí** — statistiku ovládá ten
+odečet 1,96 σ, ne jmenovatel. Podrobnosti v komentáři u výpočtu `pval_Ar`.
 
 **Sigma se na slave kanálu nikdy nefituje.** Módy `Ac` a `xyAc` mají šířku
 pevnou. Volný fit šířky (`xyasc`) slouží výhradně kalibraci.

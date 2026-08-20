@@ -153,6 +153,13 @@ def fit_gaussian_2d_point(img, x, y, sigma, mode="Ac",
     w2 = int(np.ceil(2.0 * sigma_max)) if conf_radius is None else int(conf_radius)
     w4 = int(np.ceil(4.0 * sigma_max)) if window_size is None else int(window_size)
 
+    # MATLAB round(NaN) je NaN a border test na :162 pak vyhodnoti false,
+    # takze se bod tise preskoci. int(nan) v Pythonu vyhodi ValueError.
+    # Dosazitelne z gap cesty, kde x/y pochazi z interp1 podel tracku
+    # a v NaN-oddelenem viacsegmentovem tracku muze byt NaN.
+    if not (np.isfinite(x) and np.isfinite(y)):
+        return _nan_result()
+
     xi = int(_mround(x))
     yi = int(_mround(y))
 
@@ -270,8 +277,12 @@ def fit_gaussian_2d_point(img, x, y, sigma, mode="Ac",
     # Neni tu zadna dolni mez na A (zaporna amplituda projde), zadny test
     # konvergence a zadny explicitni isnan(). NaN v prm ale zpusobi, ze vsechna
     # porovnani jsou False -> bod zustane NaN, coz je de facto NaN guard.
-    if not (np.isfinite(prm).all()
-            and -w2 < dx < w2 and -w2 < dy < w2
+    # MATLAB testuje POUZE prm(1), prm(2) a prm(3). prm(4) (s, fixni) ani
+    # prm(5) (c) se na finitnost nekontroluji -- bod s konecnou pozici
+    # a amplitudou, ale NaN pozadim, MATLAB PRIJME a zapise c = NaN.
+    # NaN porovnani jsou v Pythonu False stejne jako v MATLABu, takze
+    # tri realne podminky staci a zadny extra isfinite guard netreba.
+    if not (-w2 < dx < w2 and -w2 < dy < w2
             and prm[2] < 2.0 * d_range):
         return _nan_result(npx)
 
@@ -320,6 +331,22 @@ def fit_gaussian_2d_point(img, x, y, sigma, mode="Ac",
     hval_AD = _anderson_darling_normal(residuals, alpha=0.05)
 
     # fitGaussians2D.m:225-237, doslovne prepsano.
+    #
+    # POZN. KE KORELOVANEMU SUMU: kdyz je kanal preskalovany nebo
+    # zprumerovany (u tohoto datasetu je slave kanal 2x zvetseny), nejsou
+    # sousedni pixely nezavisle -- namereno r(lag 1) = 0.66, integral
+    # autokorelace tau = 2.81, tedy efektivnich pixelu je jen npx/2.81.
+    # Formalne to podhodnocuje A_pstd zhruba 1.68x.
+    #
+    # ZMERENO, ze to na vysledek NEMA vliv: korekce npx -> npx/tau a
+    # A_pstd -> A_pstd*sqrt(tau) neprehodila ani jedno rozhodnuti na 3000
+    # prazdnych a 1500 signalovych pozicich (0.97 % falesne pozitivnich a
+    # 23.5 % zachytu v obou variantach). Duvod: statistika je
+    # T = (A - kLevel*sigma_r)/scomb a ten odecet dominuje -- p-hodnoty jsou
+    # saturovane u 0 nebo 1, takze posun jmenovatele s nimi nehne.
+    #
+    # Korekci proto zamerne NEZAVADIME. Zacala by byt potreba, kdyby se test
+    # zmenil na prostou nulovou hypotezu A > 0, kde uz body u prahu lezi.
     sigma_A = std_vect[2]
     A_est = prm[2]
     SE_r = SE_sigma_r * kLevel
@@ -349,7 +376,7 @@ def fit_gaussian_2d_point(img, x, y, sigma, mode="Ac",
 # Verejne API: detekcni faze
 # --------------------------------------------------------------------------
 
-def dynamin_intensity(video, frame, y, x, sigma_slave, sigma_master=None,
+def dynamin_intensity(video, frame, y, x, sigma_slave, sigma_master,
                       localize=True, alpha=0.05, alpha_t=0.05, i_range=None):
     """Vrati intenzitu dynaminu (slave kanalu) pro souradnice [frame, y, x].
 
@@ -435,8 +462,6 @@ def dynamin_intensity(video, frame, y, x, sigma_slave, sigma_master=None,
     ciselna pole jsou NaN -- presne jako fitGaussians2D.m:108-131.
     """
     img = np.asarray(video[frame], dtype=np.float64)
-    if sigma_master is None:
-        sigma_master = float(sigma_slave)
 
     if i_range is None:
         i_range = (float(np.nanmin(img)), float(np.nanmax(img)))

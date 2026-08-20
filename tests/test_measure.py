@@ -317,3 +317,23 @@ def test_movie_layout_je_verejny():
     """Skripty ho musi volat misto rucniho rozbaleni shape."""
     from cmepython import movie_layout
     assert callable(movie_layout)
+
+
+def test_sigma_master_je_povinny():
+    """runDetection.m:184 pouziva vzdy 3*sigma MASTER kanalu. Tichy fallback
+    na sigma_slave by menil akceptacni polomer a prehazoval volbu fitu."""
+    import inspect
+    from cmepython import dynamin_intensity
+    sig = inspect.signature(dynamin_intensity)
+    assert sig.parameters["sigma_master"].default is inspect.Parameter.empty
+
+
+def test_nan_souradnice_vrati_nan_nespadne():
+    """MATLAB round(NaN) = NaN a bod se tise preskoci (fitGaussians2D.m:96,162).
+    int(nan) v Pythonu vyhodi ValueError -- dosazitelne z gap cesty."""
+    from cmepython.slave_intensity import fit_gaussian_2d_point
+    img = synth_frame([(32.0, 32.0)])
+    r = fit_gaussian_2d_point(img, np.nan, 32.0, SIGMA_S, mode="Ac")
+    assert not r["valid"] and np.isnan(r["A"])
+    r2 = fit_gaussian_2d_point(img, 32.0, np.nan, SIGMA_S, mode="Ac")
+    assert not r2["valid"] and np.isnan(r2["A"])
