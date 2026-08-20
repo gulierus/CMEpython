@@ -81,12 +81,14 @@ from cmepython import scale_edfs
 a, c, ref = scale_edfs([max_amplitudy_filmu_1, max_amplitudy_filmu_2, ...])
 ```
 
-> **Rozmyslete si, jestli ho chcete.** Na tomto datasetu je rozptyl mezi filmy
-> biologický, ne technický: dynamin kolísá 17,2× (CV 77 %), zatímco clathrin
-> jen 1,53× (CV 12 %) a obojí spolu nekoreluje (r = −0,02). Kdyby šlo o
-> expozici nebo gain, kolísal by clathrin stejně. Škálování by tedy smazalo
-> právě ten efekt, který se měří — u siRNA knockdownu se účinnost liší buňka
-> od buňky. Porovnejte výsledky s ním i bez něj.
+> **Rozmyslete si, jestli ho chcete.** Na tomto datasetu je rozptyl mezi
+> filmy převážně biologický, ne technický: dynaminové amplitudy kolísají
+> 17,2× (CV 77 %), zatímco pozadí téhož kanálu jen 2,3× (CV ~30 %) a
+> clathrin ~1,5–2,2× (CV 12–16 % podle snímku); korelace dynaminu s
+> clathrinem je s n = 15 nerozlišitelná od nuly. Akviziční složka do ~2×
+> se vyloučit nedá, ale 17× rozdíl nevysvětlí — u siRNA knockdownu se
+> účinnost liší buňka od buňky. Škálování by tedy smazalo právě ten efekt,
+> který se měří. Porovnejte výsledky s ním i bez něj.
 
 ## Co přesně reprodukuje
 
@@ -117,24 +119,32 @@ nemá ani korekci offsetu kamery, ani korekci bleachingu.
 jestli tam dynamin je, jsou oddělené kroky; nevýznamnost se pozná z
 `pval_Ar`, ne z `NaN`. `NaN` znamená jen, že se okno nevešlo do snímku.
 
-**Photobleaching je reálný, ale menší, než se zdá.** Po kontrole na délku
-dráhy a vyloučení drah useknutých koncem filmu zbývá pokles −18 % až −28 %
-přes film, soustředěný do prvních ~30 snímků. Pozadí přitom klesne jen o
-12 % a celý snímek o 8 % — vyhasíná vázaná frakce, zatímco volný pool se
-doplňuje difuzí. cmeAnalysis korekci nemá a tento port ji také nezavádí:
-spolehlivější je zahrnout čas vzniku dráhy jako kovariátu než hodnoty
-upravovat a riskovat, že se s bleachingem odečte i biologie.
+**Photobleaching je reálný, ale menší, než se zdá.** Po vyloučení drah
+cenzurovaných na obou koncích filmu a kontrole délky klesá vrcholová
+amplituda dynaminu postupně: ~12–17 % na 100 snímků pro dráhy ≥ 15 snímků,
+~30 % pro krátké (10–15 snímků); pokles není soustředěný do začátku filmu.
+Pozadí klesá typicky ~5 % (nejhorší film −9 %), celý snímek ~4 % — vyhasíná
+vázaná frakce, volný pool se doplňuje difuzí. Původní odhady −44 % až −62 %
+nafukovala hlavně levá cenzura: dráhy začínající ve snímku 0 jsou fragmenty
+už existujících jasných struktur (medián max A ~8300 proti ~2800 u skutečných
+zrodů). cmeAnalysis korekci nemá a tento port ji také nezavádí: spolehlivější
+je zahrnout čas vzniku dráhy jako kovariátu než hodnoty upravovat a riskovat,
+že se s bleachingem odečte i biologie.
 
 **Test významnosti je konzervativní, ne liberální.** Netestuje „je tam
-signál", ale „je tam signál silnější než 1,96 σ šumu". Změřeno na prázdných
-pozicích: 0,97 % falešně pozitivních při nominální hladině 5 %. Na pozicích
-clathrinu prohlásí za významných 23,5 %. Pro slabý dynamin je to záměrně
-přísné.
+signál", ale „je tam signál silnější než 1,96 σ šumu". Na skutečně prázdném
+pozadí vychází ~0,1–0,3 % falešně pozitivních při nominální hladině 5 %
+(podle snímku a konstrukce nulové sady)
+(horní mez ~1 %, pokud se do „prázdných" pozic připustí slabé zdroje pod
+detekčním prahem — právě ty tvoří většinu zdánlivých falešných pozitiv).
+Pro slabý dynamin je to záměrně přísné.
 
 Související: měřicí kanál tohoto datasetu je 2× zvětšený, takže sousední
-pixely nemají nezávislý šum (τ = 2,81). Korekce na efektivní počet pixelů
-byla změřena a **nepřehodila ani jedno rozhodnutí** — statistiku ovládá ten
-odečet 1,96 σ, ne jmenovatel. Podrobnosti v komentáři u výpočtu `pval_Ar`.
+pixely nemají nezávislý šum (1D integrál autokorelace τ ≈ 2,8; 2D ≈ 20).
+Korekce na efektivní počet pixelů nepřehodí na prázdných pozicích žádné
+rozhodnutí a na signálních méně než 1 % (výhradně hraniční pozitiva) —
+statistiku ovládá odečet 1,96 σ, ne jmenovatel. Reprodukce:
+`scripts/dataset_findings.py`.
 
 **Sigma se na slave kanálu nikdy nefituje.** Módy `Ac` a `xyAc` mají šířku
 pevnou. Volný fit šířky (`xyasc`) slouží výhradně kalibraci.
@@ -142,8 +152,11 @@ pevnou. Volný fit šířky (`xyasc`) slouží výhradně kalibraci.
 **Numerická shoda s MATLABem je ověřená.** `fitGaussian2D` je v cmeAnalysis
 zkompilovaná binárka bez zdrojáku (Levenberg–Marquardt z GSL), takže je
 rekonstruovaná podle chování, ne přeložená. Shoda je ale změřená přímo proti
-té binárce na 874 oknech z reálných dat — medián relativního rozdílu vychází
-10⁻⁸ až 10⁻¹⁶ pro všechny vracené veličiny v obou módech fitu:
+té binárce na 874 oknech z reálných dat: amplitudy, pozadí a rezidua sedí
+na medián relativního rozdílu 10⁻⁸ až 10⁻¹⁶; lokalizace (dx, dy) na ~5×10⁻⁷
+(max ~10⁻³ — poloha je nejhůř podmíněný parametr nelineárního fitu).
+Srovnání módu `xyAc` pokrývá 567 z 874 oken; zbytek vyřadil akceptační test
+(`fitGaussians2D.m:198`), který port zrcadlí:
 
 ```bash
 matlab -batch export_fits                      # matlab/export_fits.m

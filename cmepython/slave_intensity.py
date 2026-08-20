@@ -334,19 +334,21 @@ def fit_gaussian_2d_point(img, x, y, sigma, mode="Ac",
     #
     # POZN. KE KORELOVANEMU SUMU: kdyz je kanal preskalovany nebo
     # zprumerovany (u tohoto datasetu je slave kanal 2x zvetseny), nejsou
-    # sousedni pixely nezavisle -- namereno r(lag 1) = 0.66, integral
-    # autokorelace tau = 2.81, tedy efektivnich pixelu je jen npx/2.81.
-    # Formalne to podhodnocuje A_pstd zhruba 1.68x.
+    # sousedni pixely nezavisle -- namereno r(lag 1) = 0.66, 1D integral
+    # autokorelace tau ~ 2.8 (2D integral ~ 20). Formalne to podhodnocuje
+    # A_pstd nejmene ~1.7x.
     #
-    # ZMERENO, ze to na vysledek NEMA vliv: korekce npx -> npx/tau a
-    # A_pstd -> A_pstd*sqrt(tau) neprehodila ani jedno rozhodnuti na 3000
-    # prazdnych a 1500 signalovych pozicich (0.97 % falesne pozitivnich a
-    # 23.5 % zachytu v obou variantach). Duvod: statistika je
-    # T = (A - kLevel*sigma_r)/scomb a ten odecet dominuje -- p-hodnoty jsou
-    # saturovane u 0 nebo 1, takze posun jmenovatele s nimi nehne.
+    # ZMERENO (a nezavisle overeno auditem, scripts/dataset_findings.py):
+    # na prazdnych pozicich korekce npx -> npx/tau neprehodi ZADNE
+    # rozhodnuti (p-hodnoty jsou tam 100% saturovane u 1); na signalnich
+    # pozicich prehodi <1 % rozhodnuti pri tau=2.8 (~2 % pri tau=20) --
+    # vyhradne hranicni pozitiva s p ~ 0.001-0.003. Duvod: statistika je
+    # T = (A - kLevel*sigma_r)/scomb a ten odecet dominuje.
     #
-    # Korekci proto zamerne NEZAVADIME. Zacala by byt potreba, kdyby se test
-    # zmenil na prostou nulovou hypotezu A > 0, kde uz body u prahu lezi.
+    # Korekci proto zamerne NEZAVADIME -- praktic­ky nic nemeni a "spravna"
+    # hodnota tau (1D vs 2D integral) je modelova volba, kterou data
+    # nerozhodnou. Zacala by byt potreba, kdyby se test zmenil na prostou
+    # nulovou hypotezu A > 0, kde uz body u prahu lezi.
     sigma_A = std_vect[2]
     A_est = prm[2]
     SE_r = SE_sigma_r * kLevel
@@ -442,9 +444,11 @@ def dynamin_intensity(video, frame, y, x, sigma_slave, sigma_master,
         multi-movie odhad (runDetection.m:79, ~40 snimku ze VSECH filmu
         podminky), clampnuty na >= 1.1 (runDetection.m:92). Pro shodu s
         existujici analyzou pouzijte frameInfo(1).s z detection_v2.mat.
-    sigma_master : float or None
-        PSF sigma master kanalu; vstupuje POUZE do gate 3*sigma(mCh)
-        na runDetection.m:184. Pri None se pouzije sigma_slave.
+    sigma_master : float
+        PSF sigma MASTER kanalu; vstupuje POUZE do gate 3*sigma(mCh)
+        na runDetection.m:184. POVINNY parametr -- zadny fallback na
+        sigma_slave neexistuje, protoze by tise menil akceptacni polomer
+        a prehazoval volbu mezi obema fity.
     localize : bool
         False vypne druhy ('xyAc') fit -- vrati se ciste pozicne zamcena
         amplituda.
