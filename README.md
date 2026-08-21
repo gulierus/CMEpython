@@ -16,6 +16,13 @@ pip install -e .
 
 Závislosti: `numpy`, `scipy`, `tifffile`. Pro testy `pip install -e ".[dev]"`.
 
+## Dokumentace
+
+Srozumitelný popis toho, co program s daty dělá — psaný i pro čtenáře
+bez technického zázemí: **[docs/how-dynamin-is-measured.md](docs/how-dynamin-is-measured.md)**
+(anglicky; odpovídá na pět otázek ze zadání: vyhledávání blobu, fitování
+a výsledná intenzita, selhání fitu, normalizace, globální statistiky).
+
 ## Rychlý start
 
 ```python
