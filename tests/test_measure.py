@@ -337,3 +337,93 @@ def test_nan_souradnice_vrati_nan_nespadne():
     assert not r["valid"] and np.isnan(r["A"])
     r2 = fit_gaussian_2d_point(img, 32.0, np.nan, SIGMA_S, mode="Ac")
     assert not r2["valid"] and np.isnan(r2["A"])
+
+
+# ------------------------------------------------- vstupni kontroly dat
+
+def _stripes(img, m=0.4, freq=0.3, angle=0.7, phase=0.0):
+    yy, xx = np.mgrid[0:img.shape[0], 0:img.shape[1]]
+    k = freq * 2 * np.pi
+    return img * (1 + m * np.cos(k * (np.cos(angle) * xx + np.sin(angle) * yy)
+                                 + phase))
+
+
+def test_sim_detektor_pozna_pruhy_a_prumer_je_cisty():
+    """Jednotlivy SIM snimek ma bodove piky ve spektru; prumer 3 fazi je
+    vyrusi. Prah 10 lezi radove pod pomerem pruhu (>1000) a nad cistymi
+    daty (<7 na realnych filmech)."""
+    from cmepython import detect_sim_pattern
+    base = synth_frame([(40.0, 40.0), (80.0, 90.0)], amplitude=600.0)
+    assert not detect_sim_pattern(base)["patterned"]
+    assert detect_sim_pattern(_stripes(base))["patterned"]
+    avg = np.mean([_stripes(base, phase=f)
+                   for f in (0, 2*np.pi/3, 4*np.pi/3)], axis=0)
+    assert not detect_sim_pattern(avg)["patterned"]
+
+
+def test_shift_detektor_zmeri_znamy_posun():
+    from cmepython import estimate_channel_shift
+    rng = np.random.default_rng(4)
+    pos = rng.uniform(20, 108, size=(30, 2))
+    a = synth_frame(pos, amplitude=800.0, seed=7)
+    b = np.roll(np.roll(a, 3, axis=0), -2, axis=1)
+    r = estimate_channel_shift(a, b)
+    assert r["dy"] == pytest.approx(-3.0, abs=0.3)
+    assert r["dx"] == pytest.approx(2.0, abs=0.3)
+    r0 = estimate_channel_shift(a, a)
+    assert r0["magnitude"] < 0.05 and r0["strength"] > 0.9
+
+
+def test_measure_movie_varuje_na_sim_patternu(tmp_path):
+    video, pos = synth_movie(n_frames=2)
+    striped = np.stack([_stripes(f) for f in video])
+    stack = np.clip(striped, 0, 65535).astype(np.uint16)[:, None, :, :]
+    p = tmp_path / "sim.tif"
+    tifffile.imwrite(p, stack, imagej=True, metadata={"axes": "TCYX"})
+    coords = np.array([[0, y, x] for y, x in pos], float)
+    with pytest.warns(RuntimeWarning, match="SIM pattern"):
+        measure_movie(p, coords, SIGMA_S, SIGMA_M, slave_channel=0)
+
+
+def test_measure_movie_varuje_na_neregistrovanych(tmp_path):
+    rng = np.random.default_rng(6)
+    pos = rng.uniform(20, 108, size=(30, 2))
+    master = synth_frame(pos, amplitude=800.0, seed=8)
+    slave = np.roll(np.roll(master, 4, axis=0), 3, axis=1)
+    stack = np.stack([np.stack([master, slave])]).astype(np.uint16)
+    p = tmp_path / "shift.tif"
+    tifffile.imwrite(p, stack, imagej=True, metadata={"axes": "TCYX"})
+    coords = np.array([[0, 40.0, 40.0]])
+    with pytest.warns(RuntimeWarning, match="NEREGISTROVANE"):
+        measure_movie(p, coords, SIGMA_S, SIGMA_M,
+                      slave_channel=1, master_channel=0)
+
+
+def test_auto_sigma_odhadne_a_varuje(tmp_path):
+    """sigma_slave=None -> odhad z filmu + varovani; vysledek blizko
+    vlozene sirky."""
+    rng = np.random.default_rng(12)
+    frames = []
+    for t in range(3):
+        pos = rng.uniform(20, 108, size=(40, 2))
+        frames.append(synth_frame(pos, amplitude=900.0, noise=6.0,
+                                  seed=200 + t, sigma=1.8))
+    stack = np.clip(np.stack(frames), 0, 65535).astype(np.uint16)[:, None, :, :]
+    p = tmp_path / "auto.tif"
+    tifffile.imwrite(p, stack, imagej=True, metadata={"axes": "TCYX"})
+    coords = np.array([[1, 64.0, 64.0]])
+    with pytest.warns(RuntimeWarning, match="sigma_slave odhadnuta"):
+        r = measure_movie(p, coords, sigma_slave=None, sigma_master=1.8,
+                          slave_channel=0, validate=False)
+    assert np.isfinite(r["A"][0])
+
+
+def test_auto_sigma_master_bez_kanalu_je_chyba(tmp_path):
+    video, _ = synth_movie(n_frames=2)
+    stack = np.clip(video, 0, 65535).astype(np.uint16)[:, None, :, :]
+    p = tmp_path / "err.tif"
+    tifffile.imwrite(p, stack, imagej=True, metadata={"axes": "TCYX"})
+    with pytest.raises(ValueError, match="master_channel"):
+        measure_movie(p, np.array([[0, 32.0, 32.0]]),
+                      sigma_slave=SIGMA_S, sigma_master=None,
+                      slave_channel=0, validate=False)

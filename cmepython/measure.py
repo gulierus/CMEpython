@@ -165,8 +165,9 @@ def _one_frame(args):
     return t, measure_frame(img, ys, xs, sigma_slave, sigma_master, **kw)
 
 
-def measure_movie(path, coords, sigma_slave, sigma_master,
-                  slave_channel=2, workers=None, **kw):
+def measure_movie(path, coords, sigma_slave=None, sigma_master=None,
+                  slave_channel=2, workers=None, validate=True,
+                  master_channel=None, shift_warn_px=1.0, **kw):
     """Zmeri souradnice [frame, y, x] primo nad TIFF na disku.
 
     Snimky se ctou lazy, jeden po druhem -- 950 MB film se nikdy nedrzi
@@ -176,13 +177,25 @@ def measure_movie(path, coords, sigma_slave, sigma_master,
     ----------
     path : cesta k .tif (ImageJ hyperstack TCYX)
     coords : (N, 3) pole [frame, y, x]
-    sigma_slave, sigma_master : sirky PSF v px; sigma_slave patri
-        kanalu, na kterem se meri (viz `psf_calibration.estimate_psf_sigma`)
-    slave_channel : index kanalu, na kterem se meri. Pro tento dataset 2
-        (zprumerovany raw dynamin, 2x zvetseny).
+    sigma_slave : sirka PSF mericiho kanalu v px, nebo None. Pri None se
+        AUTOMATICKY odhadne z tohoto filmu (estimate_psf_sigma pres ~6
+        snimku + clamp z runDetection.m:90-92) a vypise varovani s pouzitou
+        hodnotou. Pro srovnatelnost napric filmy je spravnejsi kalibrovat
+        pres CELY dataset (scripts/calibrate_dataset.py) a hodnotu predat.
+    sigma_master : sirka PSF master kanalu (gate 3*sigma na
+        runDetection.m:184), nebo None -- pak je nutne zadat
+        `master_channel`, ze ktereho se odhadne.
+    slave_channel : index kanalu, na kterem se meri.
     workers : None nebo 1 = serialne, 0 = vsechna jadra, >1 = tolik procesu.
         Pozn.: pri vice nez ~4 procesech se na strojich s vicevlaknovym BLAS
         casto projevi oversubscription a zrychleni klesa.
+    validate : True = pred merenim zkontrolovat prvni pouzity snimek:
+        SIM pattern (jednotlivy neprumerovany raw snimek) a -- pokud je
+        zadan `master_channel` -- registraci kanalu. Nalezy jsou varovani,
+        mereni pokracuje. Viz cmepython.validation.
+    master_channel : index master kanalu; potreba pro kontrolu registrace
+        a pro auto-odhad sigma_master.
+    shift_warn_px : prah posunu kanalu pro varovani (px).
     """
     import tifffile
 
@@ -199,6 +212,49 @@ def measure_movie(path, coords, sigma_slave, sigma_master,
     frames = coords[:, 0].astype(int)
     if frames.min() < 0 or frames.max() >= T:
         raise ValueError(f"snimky mimo rozsah 0..{T - 1}")
+
+    # ---- auto-kalibrace sigmy (kdyz neni predana) --------------------------
+    if sigma_slave is None or sigma_master is None:
+        from .psf_calibration import estimate_psf_sigma, apply_sigma_clamp
+        with tifffile.TiffFile(path) as tf:
+            _, _, _, _, idx = movie_layout(tf)
+            tcal = np.unique(np.linspace(0, T - 1, min(6, T)).astype(int))
+            if sigma_slave is None:
+                fr = [tf.pages[idx(t, slave_channel)].asarray().astype(np.float64)
+                      for t in tcal]
+                sigma_slave, fired = apply_sigma_clamp(estimate_psf_sigma(fr))
+                warnings.warn(
+                    f"sigma_slave odhadnuta z TOHOTO filmu: {sigma_slave:.4f} px"
+                    + (" (clamp 1.1)" if fired else "")
+                    + ". Pro srovnatelnost napric filmy kalibrujte pres cely "
+                    "dataset (scripts/calibrate_dataset.py) a hodnotu predejte.",
+                    RuntimeWarning, stacklevel=2)
+            if sigma_master is None:
+                if master_channel is None:
+                    raise ValueError(
+                        "sigma_master=None vyzaduje master_channel, ze ktereho "
+                        "se da odhadnout -- gate na runDetection.m:184 pouziva "
+                        "vzdy sigmu MASTER kanalu a tichy fallback neexistuje")
+                fr = [tf.pages[idx(t, master_channel)].asarray().astype(np.float64)
+                      for t in tcal]
+                sigma_master, fired = apply_sigma_clamp(estimate_psf_sigma(fr))
+                warnings.warn(
+                    f"sigma_master odhadnuta z tohoto filmu: {sigma_master:.4f} px"
+                    + (" (clamp 1.1)" if fired else ""),
+                    RuntimeWarning, stacklevel=2)
+
+    # ---- vstupni kontroly (SIM pattern, registrace) ------------------------
+    if validate:
+        from .validation import check_movie_frame
+        t0 = int(frames.min())
+        with tifffile.TiffFile(path) as tf:
+            _, _, _, _, idx = movie_layout(tf)
+            sl = tf.pages[idx(t0, slave_channel)].asarray().astype(np.float64)
+            ma = None
+            if master_channel is not None:
+                ma = tf.pages[idx(t0, master_channel)].asarray().astype(np.float64)
+        check_movie_frame(sl, ma, shift_warn_px=shift_warn_px,
+                          context=Path(path).name)
 
     groups = [(t, np.nonzero(frames == t)[0]) for t in np.unique(frames)]
     out = _empty(len(coords))

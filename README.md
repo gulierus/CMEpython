@@ -127,6 +127,30 @@ ně nepatří** a měřit se na nich nemá.
 Interval mezi snímky zůstává nedohledaný (odhad z rozdělení životností:
 ~1,5–3 s).
 
+## Vstupní kontroly
+
+`measure_movie` před měřením automaticky zkontroluje první použitý snímek
+(`validate=True`, výchozí):
+
+- **SIM pattern** — jednotlivý raw TIRF-SIM snímek má přes sebe pruhy
+  strukturovaného osvětlení; amplituda pak závisí na poloze spotu vůči
+  pruhům a fit tiše lže. Detekce přes bodové píky ve 2D výkonovém spektru
+  proti lokálnímu pozadí (reálná zprůměrovaná data ~4–7, pruhy >1000,
+  práh 10). Řešení: zprůměrovat odpovídající 9-tice.
+- **Registrace kanálů** (jen při zadaném `master_channel`) — posun kanálů
+  ~1 px stojí u slabého signálu desítky procent amplitudy. Měří se FFT
+  křížovou korelací; při posunu nad `shift_warn_px` (výchozí 1 px) varuje,
+  při slabé korelaci řekne „nelze ověřit", ne „v pořádku".
+
+Nálezy jsou **varování, ne chyby** — měření pokračuje; uživatel může mít
+důvod pokračovat vědomě.
+
+Kalibrace σ je automatizovatelná: `sigma_slave=None` ji odhadne přímo
+z daného filmu (a varuje s použitou hodnotou). Pro srovnatelnost napříč
+filmy je ale správnější kalibrovat jednou přes celý dataset
+(`scripts/calibrate_dataset.py`) a hodnotu předávat — přesně jak to dělá
+cmeAnalysis (jedna σ na kanál na podmínku).
+
 ## Co je dobré vědět
 
 **Intenzita je amplituda gaussovky nad lokálním pozadím, v surových
