@@ -127,6 +127,40 @@ ně nepatří** a měřit se na nich nemá.
 Interval mezi snímky zůstává nedohledaný (odhad z rozdělení životností:
 ~1,5–3 s).
 
+## Klasifikace dynamin-pozitivních drah
+
+Port Aguetovy statistické klasifikace (`runSlaveChannelClassification.m`;
+zadání na ni odkazuje jako na „druhý relevantní odstavec Methods"). Dva
+nezávislé testy na dráze, oba binomicky korigované na její délku:
+
+1. **`significant_master`** — je počet významných detekcí podél dráhy
+   vyšší, než kolik by náhodně nasbírala dráha téže délky? Očekávanou
+   náhodu dává `p_detection`, změřená přes 16 snímků filmu.
+2. **`significant_slave`** — je počet bodů s amplitudou významně nad
+   95. percentilem pozadí (`bg95`) vyšší než očekávaných 5 % falešných
+   pozitiv?
+
+```bash
+python3 scripts/classify_trajectories.py     # -> measured/*-classified.csv
+```
+
+```python
+from cmepython import background_stats, classify_tracks
+stats = background_stats(film, positions_by_frame, sigma_slave=2.6424)
+vysledky = classify_tracks(drahy, stats["bg95"], stats["p_detection"])
+```
+
+Vstupy klasifikace (`filter_gaussian_fit_2d` — celoplošný fit,
+`mask_from_first_mode` — maska buňky) jsou validované proti MATLABu:
+fit na strojovou přesnost (max |Δ| 3,6×10⁻¹¹ na reálném snímku), maska
+s Jaccardem 0,9996. Jedna vědomá odchylka: CCS oblasti se z pozadí
+vylučují disky kolem pozic z trajektorií místo detekčních masek
+`dmasks.tif`, které bez běhu celé MATLAB pipeline neexistují.
+
+> Pozn. pro portování: `padarrayXT('symmetric')` v cmeAnalysis zrcadlí
+> **bez** duplikace okrajového pixelu — je to numpy `'reflect'`, nikoli
+> numpy `'symmetric'`. Záměna způsobí chyby až ~10³ v pásu u okraje.
+
 ## Vstupní kontroly
 
 `measure_movie` před měřením automaticky zkontroluje první použitý snímek

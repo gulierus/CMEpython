@@ -22,6 +22,8 @@ from .measure import (measure_frame, measure_coords, measure_movie,
 from .psf_calibration import estimate_psf_sigma, apply_sigma_clamp, detect_candidates
 from .edf_scaling import scale_edfs, apply_scaling
 from .validation import detect_sim_pattern, estimate_channel_shift, check_movie_frame
+from .background import filter_gaussian_fit_2d, mask_from_first_mode, cell_mask_from_movie
+from .classification import background_stats, classify_track, classify_tracks
 
 __all__ = [
     # verny port jednoho bodu
@@ -34,6 +36,9 @@ __all__ = [
     "scale_edfs", "apply_scaling",
     # vstupni kontroly dat
     "detect_sim_pattern", "estimate_channel_shift", "check_movie_frame",
+    # klasifikace dynamin-pozitivnich drah (Aguet)
+    "filter_gaussian_fit_2d", "mask_from_first_mode", "cell_mask_from_movie",
+    "background_stats", "classify_track", "classify_tracks",
 ]
 # Zamerne mimo __all__, aby se nepletly s portem: `detect_candidates` neni
 # port pointSourceDetection (je zjednoduseny, jen pro kalibraci) a `ecdf`

@@ -29,3 +29,11 @@ mmc1.pdf
 
 # Kalibrace sirky PSF se COMMITUJE -- bez ni jsou hodnoty v README
 # a ve skriptech neoveritelne magicke konstanty.
+
+# Vygenerovane validacni artefakty -- pregeneruje matlab -batch
+# export_filter_ref / export_mask_ref + Python export maxproj.
+# (mex_reference.mat zustava v gitu: je maly a je vstupem
+#  scripts/validate_against_matlab.py)
+matlab/filter_ref.mat
+matlab/maxproj_ch0.tif
+matlab/mask_ref.tif
