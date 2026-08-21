@@ -108,6 +108,25 @@ Upstream si naklonuj zvlášť, v repu není:
 git clone https://github.com/DanuserLab/cmeAnalysis.git
 ```
 
+## Data tohoto projektu
+
+Filmy ve složce `reconstructed registered/` jsou **TIRF-SIM**: ch0 = clathrin
+(SIM rekonstrukce, červený), ch1 = dynamin (SIM rekonstrukce, zelený),
+**ch2 = zprůměrovaný raw dynamin TIRF, 2× upsamplovaný a registrovaný na
+clathrin — na něm se měří**. Pixel: 79,1 nm v raw rozlišení, tedy
+**39,55 nm/px** v gridu těchto souborů; NA = 1,5. Červený a zelený kanál
+jdou jinou optickou dráhou (jiná PSF, jiná frekvence SIM patternu).
+
+Naměřené σ tomu odpovídají: ch2 má FWHM ~246 nm proti difrakčnímu limitu
+~172 nm (1,4× širší — průměrování 9 SIM snímků + interpolace při
+upsamplingu; proto je správně σ odhadovat z dat, ne z optiky, což je
+i výchozí chování cmeAnalysis). ch0/ch1 mají FWHM 132/82 nm, tedy pod
+difrakčním limitem, jak má SIM rekonstrukce — **PSF model cmeAnalysis na
+ně nepatří** a měřit se na nich nemá.
+
+Interval mezi snímky zůstává nedohledaný (odhad z rozdělení životností:
+~1,5–3 s).
+
 ## Co je dobré vědět
 
 **Intenzita je amplituda gaussovky nad lokálním pozadím, v surových
