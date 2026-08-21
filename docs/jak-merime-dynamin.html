@@ -1,0 +1,682 @@
+<!doctype html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Jak měříme dynamin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600;12..96,700&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&family=IBM+Plex+Mono:wght@400;600&display=swap">
+
+<style>
+:root {
+  --paper:    #FAF7F1;
+  --surface:  #FFFFFF;
+  --ink:      #221E16;
+  --ink2:     #4C463A;
+  --muted:    #837B6A;
+  --hair:     #E3DDCE;
+  --hair-2:   #EFEAE0;
+  --dyn:      #A26E10;   /* dynamin — jantarové „světlo" */
+  --dyn-deep: #7A5106;
+  --dyn-bg:   #F6ECD6;
+  --clc:      #20666E;   /* clathrin — petrolejová „struktura" */
+  --clc-bg:   #DFECEE;
+  --warn:     #9A4128;
+  --warn-bg:  #F6E3DB;
+  --code-bg:  #F0EBDF;
+
+  --f-disp: "Bricolage Grotesque", "Avenir Next", "Segoe UI", sans-serif;
+  --f-body: "Source Serif 4", Georgia, "Times New Roman", serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper:    #171310;
+    --surface:  #201B15;
+    --ink:      #EDE7DA;
+    --ink2:     #C7BFAE;
+    --muted:    #948B78;
+    --hair:     #3A342A;
+    --hair-2:   #2B2620;
+    --dyn:      #DFAE55;
+    --dyn-deep: #EDC77E;
+    --dyn-bg:   #3A2D14;
+    --clc:      #6FB9C1;
+    --clc-bg:   #163337;
+    --warn:     #DE8B6E;
+    --warn-bg:  #3C2118;
+    --code-bg:  #2A251D;
+  }
+}
+:root[data-theme="dark"] {
+  --paper:    #171310;
+  --surface:  #201B15;
+  --ink:      #EDE7DA;
+  --ink2:     #C7BFAE;
+  --muted:    #948B78;
+  --hair:     #3A342A;
+  --hair-2:   #2B2620;
+  --dyn:      #DFAE55;
+  --dyn-deep: #EDC77E;
+  --dyn-bg:   #3A2D14;
+  --clc:      #6FB9C1;
+  --clc-bg:   #163337;
+  --warn:     #DE8B6E;
+  --warn-bg:  #3C2118;
+  --code-bg:  #2A251D;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--f-body);
+  font-size: 17.5px;
+  line-height: 1.72;
+  -webkit-font-smoothing: antialiased;
+}
+
+.wrap { max-width: 46rem; margin: 0 auto; padding: 0 24px 110px; }
+
+/* ---------- masthead ---------- */
+header.mast { padding: 64px 0 40px; }
+
+.eyebrow {
+  font-family: var(--f-mono);
+  font-size: 11.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 0 0 20px;
+}
+
+h1 {
+  font-family: var(--f-disp);
+  font-weight: 700;
+  font-size: clamp(38px, 7vw, 56px);
+  line-height: 1.02;
+  letter-spacing: -0.02em;
+  margin: 0 0 22px;
+  text-wrap: balance;
+}
+
+.standfirst {
+  font-size: 20.5px;
+  line-height: 1.62;
+  color: var(--ink2);
+  margin: 0;
+  max-width: 40rem;
+}
+.standfirst .dynword { color: var(--dyn); font-weight: 600; }
+.standfirst .clcword { color: var(--clc); font-weight: 600; }
+
+/* ---------- TOC ---------- */
+nav.toc {
+  margin: 40px 0 0;
+  padding: 22px 26px;
+  background: var(--surface);
+  border: 1px solid var(--hair);
+  border-radius: 10px;
+}
+nav.toc p {
+  font-family: var(--f-mono);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 0 0 12px;
+}
+nav.toc ol {
+  margin: 0; padding: 0 0 0 2px;
+  list-style: none;
+  counter-reset: q;
+  display: grid;
+  gap: 7px;
+}
+nav.toc ol li { counter-increment: q; }
+nav.toc a {
+  font-family: var(--f-disp);
+  font-weight: 600;
+  font-size: 15.5px;
+  color: var(--ink);
+  text-decoration: none;
+  display: grid;
+  grid-template-columns: 26px 1fr;
+  gap: 8px;
+  align-items: baseline;
+}
+nav.toc a::before {
+  content: counter(q);
+  font-family: var(--f-mono);
+  font-weight: 600;
+  font-size: 12px;
+  color: var(--dyn);
+}
+nav.toc li.extra a::before { content: "+"; color: var(--muted); }
+nav.toc a:hover { color: var(--dyn); }
+nav.toc a:focus-visible { outline: 2px solid var(--dyn); outline-offset: 3px; border-radius: 3px; }
+
+/* ---------- sections ---------- */
+section { margin-top: 72px; scroll-margin-top: 24px; }
+
+.q-tag {
+  font-family: var(--f-mono);
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--dyn);
+  margin: 0 0 10px;
+}
+
+h2 {
+  font-family: var(--f-disp);
+  font-weight: 700;
+  font-size: clamp(24px, 4vw, 30px);
+  line-height: 1.14;
+  letter-spacing: -0.014em;
+  margin: 0 0 8px;
+  text-wrap: balance;
+}
+
+.answer-one-line {
+  font-family: var(--f-disp);
+  font-weight: 600;
+  font-size: 18.5px;
+  color: var(--ink2);
+  border-bottom: 2px solid var(--hair);
+  padding: 6px 0 18px;
+  margin: 0 0 22px;
+}
+.answer-one-line strong { color: var(--dyn); }
+
+h3 {
+  font-family: var(--f-disp);
+  font-weight: 600;
+  font-size: 18px;
+  margin: 34px 0 10px;
+}
+
+p { margin: 0 0 17px; }
+p:last-child { margin-bottom: 0; }
+
+a { color: var(--clc); text-underline-offset: 2px; }
+a:focus-visible { outline: 2px solid var(--clc); outline-offset: 2px; }
+
+code {
+  font-family: var(--f-mono);
+  font-size: 0.82em;
+  background: var(--code-bg);
+  padding: 0.14em 0.4em;
+  border-radius: 4px;
+}
+
+ul, ol.plain { margin: 0 0 17px; padding-left: 24px; }
+li { margin-bottom: 8px; }
+li::marker { color: var(--dyn); }
+
+/* ---------- callouts ---------- */
+.callout {
+  background: var(--surface);
+  border: 1px solid var(--hair);
+  border-left: 4px solid var(--dyn);
+  border-radius: 0 10px 10px 0;
+  padding: 18px 22px;
+  margin: 24px 0;
+}
+.callout.clc  { border-left-color: var(--clc); }
+.callout.warn { border-left-color: var(--warn); }
+.callout > p:first-child { margin-top: 0; }
+.callout-label {
+  font-family: var(--f-mono);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  color: var(--dyn);
+  margin: 0 0 8px;
+}
+.callout.clc  .callout-label { color: var(--clc); }
+.callout.warn .callout-label { color: var(--warn); }
+
+/* ---------- tables ---------- */
+.tbl-wrap { overflow-x: auto; margin: 22px 0; }
+table {
+  border-collapse: collapse;
+  width: 100%;
+  min-width: 480px;
+  font-family: var(--f-disp);
+  font-size: 15px;
+  line-height: 1.5;
+  background: var(--surface);
+  border: 1px solid var(--hair);
+  border-radius: 10px;
+  overflow: hidden;
+}
+th {
+  text-align: left;
+  font-weight: 600;
+  font-size: 11.5px;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--muted);
+  background: var(--hair-2);
+  padding: 10px 16px;
+}
+td {
+  padding: 11px 16px;
+  border-top: 1px solid var(--hair-2);
+  vertical-align: top;
+  color: var(--ink2);
+}
+td:first-child { color: var(--ink); font-weight: 600; font-family: var(--f-disp); }
+td code { white-space: nowrap; }
+
+.yes { color: var(--dyn); font-weight: 700; }
+.no  { color: var(--muted); }
+
+/* ---------- figures ---------- */
+figure {
+  margin: 30px 0;
+  padding: 24px 22px 16px;
+  background: var(--surface);
+  border: 1px solid var(--hair);
+  border-radius: 12px;
+}
+figure svg { display: block; max-width: 100%; height: auto; margin: 0 auto; color: var(--ink2); }
+figcaption {
+  font-family: var(--f-disp);
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--muted);
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--hair-2);
+}
+
+/* ---------- glossary ---------- */
+dl.gloss { margin: 22px 0 0; display: grid; gap: 14px; }
+dl.gloss div {
+  background: var(--surface);
+  border: 1px solid var(--hair);
+  border-radius: 10px;
+  padding: 14px 18px;
+}
+dl.gloss dt {
+  font-family: var(--f-disp);
+  font-weight: 700;
+  font-size: 15.5px;
+  margin-bottom: 4px;
+}
+dl.gloss dd { margin: 0; font-size: 16px; color: var(--ink2); }
+
+footer {
+  margin-top: 90px;
+  padding-top: 24px;
+  border-top: 1px solid var(--hair);
+  font-family: var(--f-mono);
+  font-size: 12px;
+  line-height: 1.9;
+  color: var(--muted);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation: none !important; transition: none !important; }
+}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+<header class="mast">
+  <p class="eyebrow">CMEpython · dokumentace pro každého</p>
+  <h1>Jak měříme dynamin</h1>
+  <p class="standfirst">Program dostane mikroskopické video a seznam míst, kde na buněčné membráně sedí <span class="clcword">klathrinové jamky</span>. Pro každé místo odpoví na jednu otázku: <span class="dynword">kolik světla dynaminu</span> tam v tu chvíli svítí? Tento dokument vysvětluje, jak přesně to dělá — bez předpokladu technického vzdělání.</p>
+
+  <nav class="toc" aria-label="Obsah">
+    <p>Pět otázek, pět odpovědí</p>
+    <ol>
+      <li><a href="#hledani">Jak se v okolí zadaného místa hledá dynaminový blob?</a></li>
+      <li><a href="#fit">Jak probíhá fitování Gaussovy funkce a co je výsledná intenzita?</a></li>
+      <li><a href="#selhani">Co se stane, když se fit nepodaří?</a></li>
+      <li><a href="#normalizace">Jak je výsledná intenzita normalizována?</a></li>
+      <li><a href="#globalni">Používá výpočet statistiky z celého videa, nebo více videí?</a></li>
+      <li class="extra"><a href="#nedela">Co program záměrně nedělá</a></li>
+      <li class="extra"><a href="#slovnicek">Malý slovníček</a></li>
+    </ol>
+  </nav>
+</header>
+
+<!-- ============================================================ -->
+<section id="postup">
+  <p class="q-tag">Nejdřív celkový obrázek</p>
+  <h2>Co se stane, když programu dáte data</h2>
+
+  <p>Vstupem jsou dvě věci: <strong>video</strong> (soubor TIFF — stovky snímků, každý je mřížka jasových hodnot, pixelů) a <strong>seznam souřadnic</strong> — pro každý bod číslo snímku a pozici, kde se v klathrinovém kanálu našla jamka. Souřadnice program nehledá sám; dodáváte je vy, typicky z trackovacího programu.</p>
+
+  <figure>
+    <svg viewBox="0 0 880 190" role="img" aria-label="Tok dat: video a souřadnice projdou vstupní kontrolou, pro každý bod se vyřízne malé okénko, proběhnou dva fity a vznikne jeden řádek výsledků.">
+      <defs>
+        <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+        </marker>
+      </defs>
+      <!-- vstupy -->
+      <rect x="12" y="22" width="150" height="44" rx="8" fill="none" stroke-width="1.6" style="stroke:var(--clc)"/>
+      <text x="87" y="41" text-anchor="middle" font-size="13" font-weight="600" style="font-family:var(--f-disp);fill:var(--ink)">video (TIFF)</text>
+      <text x="87" y="57" text-anchor="middle" font-size="11" style="font-family:var(--f-disp);fill:var(--muted)">kanál s dynaminem</text>
+
+      <rect x="12" y="118" width="150" height="44" rx="8" fill="none" stroke-width="1.6" style="stroke:var(--clc)"/>
+      <text x="87" y="137" text-anchor="middle" font-size="13" font-weight="600" style="font-family:var(--f-disp);fill:var(--ink)">souřadnice jamek</text>
+      <text x="87" y="153" text-anchor="middle" font-size="11" style="font-family:var(--f-disp);fill:var(--muted)">snímek, y, x</text>
+
+      <line x1="162" y1="44" x2="216" y2="80" stroke="currentColor" stroke-width="1.4" marker-end="url(#arr)"/>
+      <line x1="162" y1="140" x2="216" y2="104" stroke="currentColor" stroke-width="1.4" marker-end="url(#arr)"/>
+
+      <!-- kontroly -->
+      <rect x="222" y="66" width="150" height="52" rx="8" fill="none" stroke="currentColor" stroke-width="1.4" stroke-dasharray="5 4"/>
+      <text x="297" y="87" text-anchor="middle" font-size="13" font-weight="600" style="font-family:var(--f-disp);fill:var(--ink)">vstupní kontrola</text>
+      <text x="297" y="104" text-anchor="middle" font-size="11" style="font-family:var(--f-disp);fill:var(--muted)">surový SIM? posunuté kanály?</text>
+
+      <line x1="372" y1="92" x2="424" y2="92" stroke="currentColor" stroke-width="1.4" marker-end="url(#arr)"/>
+      <text x="398" y="82" text-anchor="middle" font-size="10" style="font-family:var(--f-mono);fill:var(--muted)">pro každý bod</text>
+
+      <!-- okenko -->
+      <rect x="430" y="66" width="128" height="52" rx="8" fill="none" stroke="currentColor" stroke-width="1.4"/>
+      <text x="494" y="87" text-anchor="middle" font-size="13" font-weight="600" style="font-family:var(--f-disp);fill:var(--ink)">výřez 23 × 23 px</text>
+      <text x="494" y="104" text-anchor="middle" font-size="11" style="font-family:var(--f-disp);fill:var(--muted)">kolem zadaného místa</text>
+
+      <line x1="558" y1="92" x2="610" y2="92" stroke="currentColor" stroke-width="1.4" marker-end="url(#arr)"/>
+
+      <!-- fity -->
+      <rect x="616" y="66" width="110" height="52" rx="8" stroke-width="1.6" style="fill:var(--dyn-bg);stroke:var(--dyn)"/>
+      <text x="671" y="87" text-anchor="middle" font-size="13" font-weight="600" style="font-family:var(--f-disp);fill:var(--ink)">dva fity</text>
+      <text x="671" y="104" text-anchor="middle" font-size="11" style="font-family:var(--f-disp);fill:var(--muted)">kopeček světla</text>
+
+      <line x1="726" y1="92" x2="778" y2="92" stroke="currentColor" stroke-width="1.4" marker-end="url(#arr)"/>
+
+      <!-- vystup -->
+      <rect x="784" y="56" width="86" height="72" rx="8" fill="none" stroke-width="1.6" style="stroke:var(--dyn)"/>
+      <text x="827" y="80" text-anchor="middle" font-size="13" font-weight="600" style="font-family:var(--f-disp);fill:var(--ink)">výsledek</text>
+      <text x="827" y="97" text-anchor="middle" font-size="11" style="font-family:var(--f-disp);fill:var(--muted)">jas + nejistota</text>
+      <text x="827" y="112" text-anchor="middle" font-size="11" style="font-family:var(--f-disp);fill:var(--muted)">+ verdikt</text>
+    </svg>
+    <figcaption>Cesta jednoho bodu programem. Z videa se vyřízne malé okénko kolem zadané pozice, v něm proběhnou dva fity a ven jde jeden řádek tabulky. Nic víc se s videem nedělá.</figcaption>
+  </figure>
+
+  <p>Než začne měření, program se podívá na první snímek a udělá dvě <strong>vstupní kontroly</strong>: nejsou data omylem surové SIM snímky s pruhy osvětlení (na těch se měřit nesmí — musí se nejdřív zprůměrovat)? A sedí na sebe kanály (není dynaminový obraz posunutý vůči klathrinovému)? Když něco nesedí, program <em>varuje, ale pokračuje</em> — rozhodnutí nechává na vás.</p>
+
+  <p>Pak vezme bod po bodu a pro každý spočítá výsledky. Do vaší tabulky přibydou nové sloupce — v lidské řeči:</p>
+
+  <div class="tbl-wrap">
+  <table>
+    <tr><th>sloupec</th><th>co znamená</th></tr>
+    <tr><td><code>dnm_A</code></td><td><strong>Hlavní výsledek:</strong> jas dynaminu na daném místě — výška „kopečku světla" nad okolním pozadím.</td></tr>
+    <tr><td><code>dnm_c</code></td><td>Úroveň místního pozadí (kolik svítí okolí samo o sobě).</td></tr>
+    <tr><td><code>dnm_A_pstd</code></td><td>Nejistota hlavního výsledku — na kolik plus minus mu můžete věřit.</td></tr>
+    <tr><td><code>dnm_pval</code>, <code>dnm_signif</code></td><td>Verdikt: jak snadno by takové číslo vzniklo čirou náhodou v šumu, a zkrácené ano/ne.</td></tr>
+    <tr><td><code>dnm_x</code>, <code>dnm_y</code></td><td>Doladěná pozice, pokud fit směl posunout střed (viz otázka 1).</td></tr>
+    <tr><td><code>dnm_valid</code></td><td>Jestli měření vůbec proběhlo (0 jen u bodů těsně na okraji obrazu).</td></tr>
+  </table>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section id="hledani">
+  <p class="q-tag">Otázka 1</p>
+  <h2>Jak se v okolí zadaného místa hledá dynaminový blob?</h2>
+  <p class="answer-one-line">Krátká odpověď: <strong>nehledá se</strong>. Měří se přesně tam, kam ukazuje klathrin — a fitu se jen dovolí drobná korekce polohy, pokud si ji obhájí.</p>
+
+  <p>Představte si, že měříte jas slabé lampičky na zdi a kolega vám ukáže prstem: „tady". Můžete udělat dvě věci. Buď přiložit měřák <em>přesně na to místo</em> a odečíst hodnotu. Nebo se v těsném okolí porozhlédnout, jestli lampička není o kousek vedle. Program dělá obojí, v tomto pořadí:</p>
+
+  <ul>
+    <li><strong>Fit 1 — pozice zamčená.</strong> Na zadané souřadnici se spočítá, jak vysoký „kopeček světla" tam sedí. Poloha se nesmí ani o pixel pohnout. Výsledkem je poctivá odpověď na otázku „kolik světla je <em>přesně tady</em>" — i kdyby to byla nula.</li>
+    <li><strong>Fit 2 — pozice se smí posunout.</strong> Tentýž výpočet se pustí znovu, ale střed kopečku se smí volně doladit. Pokud dynaminová tečka sedí o kousíček vedle klathrinové, tenhle fit ji najde.</li>
+  </ul>
+
+  <figure>
+    <svg viewBox="0 0 860 210" role="img" aria-label="Rozhodovací pravidlo: výsledek posunutého fitu se použije jen tehdy, když se posunul jen málo a zároveň našel jasnější kopeček; jinak platí fit na zamčené pozici.">
+      <defs>
+        <marker id="arr2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+        </marker>
+      </defs>
+      <rect x="14" y="70" width="168" height="56" rx="8" fill="none" stroke="currentColor" stroke-width="1.5"/>
+      <text x="98" y="93" text-anchor="middle" font-size="13.5" font-weight="600" style="font-family:var(--f-disp);fill:var(--ink)">fit 1</text>
+      <text x="98" y="111" text-anchor="middle" font-size="11.5" style="font-family:var(--f-disp);fill:var(--muted)">pozice zamčená</text>
+
+      <line x1="182" y1="98" x2="234" y2="98" stroke="currentColor" stroke-width="1.4" marker-end="url(#arr2)"/>
+      <text x="208" y="88" text-anchor="middle" font-size="10" style="font-family:var(--f-mono);fill:var(--muted)">pak</text>
+
+      <rect x="240" y="70" width="168" height="56" rx="8" fill="none" stroke="currentColor" stroke-width="1.5"/>
+      <text x="324" y="93" text-anchor="middle" font-size="13.5" font-weight="600" style="font-family:var(--f-disp);fill:var(--ink)">fit 2</text>
+      <text x="324" y="111" text-anchor="middle" font-size="11.5" style="font-family:var(--f-disp);fill:var(--muted)">smí se posunout</text>
+
+      <line x1="408" y1="98" x2="458" y2="98" stroke="currentColor" stroke-width="1.4" marker-end="url(#arr2)"/>
+
+      <!-- diamant -->
+      <polygon points="560,38 682,98 560,158 438,98" stroke="currentColor" stroke-width="1.5" style="fill:var(--surface)"/>
+      <text x="560" y="86" text-anchor="middle" font-size="12.5" font-weight="600" style="font-family:var(--f-disp);fill:var(--ink)">posunul se jen málo</text>
+      <text x="560" y="103" text-anchor="middle" font-size="12.5" font-weight="600" style="font-family:var(--f-disp);fill:var(--ink)">a našel víc světla?</text>
+
+      <line x1="682" y1="98" x2="736" y2="60" stroke-width="1.8" marker-end="url(#arr2)" style="stroke:var(--dyn)"/>
+      <text x="702" y="62" text-anchor="middle" font-size="10.5" font-weight="600" style="font-family:var(--f-mono);fill:var(--dyn)">ano</text>
+      <line x1="682" y1="98" x2="736" y2="140" stroke="currentColor" stroke-width="1.4" marker-end="url(#arr2)"/>
+      <text x="702" y="146" text-anchor="middle" font-size="10.5" style="font-family:var(--f-mono);fill:var(--muted)">ne</text>
+
+      <rect x="740" y="34" width="108" height="46" rx="8" stroke-width="1.6" style="fill:var(--dyn-bg);stroke:var(--dyn)"/>
+      <text x="794" y="61" text-anchor="middle" font-size="13" font-weight="600" style="font-family:var(--f-disp);fill:var(--ink)">platí fit 2</text>
+
+      <rect x="740" y="120" width="108" height="46" rx="8" fill="none" stroke="currentColor" stroke-width="1.5"/>
+      <text x="794" y="147" text-anchor="middle" font-size="13" font-weight="600" style="font-family:var(--f-disp);fill:var(--ink)">platí fit 1</text>
+    </svg>
+    <figcaption>Posunutý fit musí splnit obě podmínky najednou: zůstat blízko (u našich dat zhruba do 4 pixelů) <em>a</em> najít jasnější kopeček. Jinak se použije měření na původním, zamčeném místě.</figcaption>
+  </figure>
+
+  <p>Proč ta opatrnost? Dynaminu je na jamce málo a jeho signál se topí v šumu. Kdyby program rovnou „hledal", na slabých místech by se ochotně chytil nejbližšího šumového zrnka a hlásil světlo tam, kde žádné není. Zamčený fit tomu brání — a posunutému se věří, jen když je posun malý (hlídají ho dvě nezávislé pojistky) a výsledek prokazatelně lepší.</p>
+
+  <div class="callout clc">
+    <p class="callout-label">K čemu je klathrin</p>
+    <p>Klathrinový kanál slouží jako <strong>ukazovátko</strong> — je jasný a spolehlivý, takže říká <em>kde</em> měřit. Samotné měření pak probíhá výhradně v dynaminovém kanálu. Proto je důležité, aby na sebe oba kanály přesně seděly; program to při startu kontroluje.</p>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section id="fit">
+  <p class="q-tag">Otázka 2</p>
+  <h2>Jak probíhá fitování a co přesně je výsledná intenzita?</h2>
+  <p class="answer-one-line">Výsledek je <strong>výška kopečku světla nad místním pozadím</strong> — nic víc, nic míň.</p>
+
+  <p>Jedna svítící molekulární tečka se v mikroskopu nezobrazí jako bod, ale jako malý rozmazaný <strong>kopeček světla</strong> — fyzika mikroskopu jej rozmaže vždy do téhož tvaru zvonu (Gaussovy křivky). „Fitování" pak znamená: vzít matematický kopeček a doladit jeho parametry tak, aby co nejlépe seděl na skutečné hodnoty pixelů ve výřezu 23 × 23 pixelů.</p>
+
+  <figure>
+    <svg viewBox="0 0 660 290" role="img" aria-label="Průřez měřeným okénkem: sloupce jsou naměřené pixely, přes ně je proložen zvonovitý kopeček nad rovnou podlahou pozadí. Výška kopečku nad podlahou je výsledek A, úroveň podlahy je pozadí c, šířka kopečku je pevně daná.">
+      <defs>
+        <marker id="arr3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" style="fill:var(--dyn)"/>
+        </marker>
+      </defs>
+      <!-- pixely (sloupce) -->
+      <g fill="currentColor" opacity="0.28">
+        <rect x="86"  y="216" width="11" height="26"/>
+        <rect x="104" y="222" width="11" height="20"/>
+        <rect x="122" y="212" width="11" height="30"/>
+        <rect x="140" y="218" width="11" height="24"/>
+        <rect x="158" y="206" width="11" height="36"/>
+        <rect x="176" y="196" width="11" height="46"/>
+        <rect x="194" y="176" width="11" height="66"/>
+        <rect x="212" y="148" width="11" height="94"/>
+        <rect x="230" y="116" width="11" height="126"/>
+        <rect x="248" y="92"  width="11" height="150"/>
+        <rect x="266" y="80"  width="11" height="162"/>
+        <rect x="284" y="84"  width="11" height="158"/>
+        <rect x="302" y="102" width="11" height="140"/>
+        <rect x="320" y="130" width="11" height="112"/>
+        <rect x="338" y="160" width="11" height="82"/>
+        <rect x="356" y="188" width="11" height="54"/>
+        <rect x="374" y="204" width="11" height="38"/>
+        <rect x="392" y="214" width="11" height="28"/>
+        <rect x="410" y="210" width="11" height="32"/>
+        <rect x="428" y="220" width="11" height="22"/>
+      </g>
+      <!-- podlaha pozadi -->
+      <line x1="60" y1="218" x2="470" y2="218" stroke-width="1.6" stroke-dasharray="6 5" style="stroke:var(--clc)"/>
+      <!-- gaussovka -->
+      <path d="M 78,218 C 190,216 208,74 272,74 C 336,74 354,216 462,218"
+            fill="none" stroke-width="2.6" style="stroke:var(--dyn)"/>
+      <!-- A sipka -->
+      <line x1="272" y1="212" x2="272" y2="80" stroke-width="1.7"
+            marker-start="url(#arr3)" marker-end="url(#arr3)" style="stroke:var(--dyn)"/>
+      <text x="286" y="132" font-size="14.5" font-weight="700" style="font-family:var(--f-disp);fill:var(--dyn)">A — výška</text>
+      <text x="286" y="150" font-size="12" style="font-family:var(--f-disp);fill:var(--dyn)">= výsledná intenzita</text>
+      <!-- sigma -->
+      <line x1="236" y1="146" x2="308" y2="146" stroke="currentColor" stroke-width="1.2" stroke-dasharray="3 3"/>
+      <text x="236" y="139" font-size="11.5" style="font-family:var(--f-disp);fill:var(--muted)">σ — šířka, pevně daná</text>
+      <!-- c popisek -->
+      <text x="470" y="211" text-anchor="end" font-size="12" style="font-family:var(--f-disp);fill:var(--clc)">c — podlaha (místní pozadí)</text>
+      <!-- osa -->
+      <line x1="60" y1="242" x2="470" y2="242" stroke="currentColor" stroke-width="1"/>
+      <text x="265" y="266" text-anchor="middle" font-size="11.5" style="font-family:var(--f-disp);fill:var(--muted)">← průřez výřezem 23 × 23 pixelů →</text>
+      <!-- legenda vpravo -->
+      <g font-size="12.5" style="font-family:var(--f-disp)">
+        <rect x="502" y="80" width="12" height="12" fill="currentColor" opacity="0.28"/>
+        <text x="522" y="90.5" style="fill:var(--ink2)">naměřené pixely</text>
+        <line x1="502" y1="114" x2="514" y2="114" stroke-width="2.6" style="stroke:var(--dyn)"/>
+        <text x="522" y="118.5" style="fill:var(--ink2)">proložený kopeček</text>
+        <line x1="502" y1="140" x2="514" y2="140" stroke-width="1.6" stroke-dasharray="5 4" style="stroke:var(--clc)"/>
+        <text x="522" y="144.5" style="fill:var(--ink2)">pozadí</text>
+      </g>
+    </svg>
+    <figcaption>Průřez jedním měřeným okénkem. Program hledá takovou výšku kopečku a takovou úroveň podlahy, aby křivka nejlépe procházela naměřenými pixely. Výsledná intenzita je vzdálenost od podlahy k vrcholu — ne hodnota nejjasnějšího pixelu, ne součet celého kopečku.</figcaption>
+  </figure>
+
+  <p>Kopeček má čtyři vlastnosti, ale program si smí hrát jen s některými:</p>
+  <ul>
+    <li><strong>Výška (A)</strong> — dolaďuje se vždy. <strong>To je výsledná intenzita.</strong></li>
+    <li><strong>Podlaha (c)</strong> — dolaďuje se vždy, současně s výškou. Díky tomu je výsledek automaticky „nad pozadím" — světlo okolí se do něj nepočítá.</li>
+    <li><strong>Poloha (x, y)</strong> — zamčená ve fitu 1, volná ve fitu 2 (viz otázka 1).</li>
+    <li><strong>Šířka (σ)</strong> — <em>nikdy</em> se nedolaďuje. Je změřená předem z celého datasetu (viz otázka 5), protože fyzika mikroskopu ji určuje pro všechna měření stejně. Kdyby se směla měnit, fit by na šumu „nafoukl" široký plochý kopeček z ničeho.</li>
+  </ul>
+
+  <p>Kromě výšky vrátí program i <strong>nejistotu</strong> (o kolik se výška může mýlit vzhledem k šumu v okénku) a <strong>p-hodnotu</strong> — číslo mezi 0 a 1 říkající, jak snadno by stejně vysoký kopeček vznikl čirou náhodou. Malá p-hodnota = „tohle šum skoro jistě není".</p>
+</section>
+
+<!-- ============================================================ -->
+<section id="selhani">
+  <p class="q-tag">Otázka 3</p>
+  <h2>Co se stane, když se fit nepodaří?</h2>
+  <p class="answer-one-line">Nejdřív to nejdůležitější: <strong>„žádný dynamin" není selhání.</strong> Prázdné místo vrátí číslo blízko nuly — ne chybu.</p>
+
+  <p>Tady je nejčastější nedorozumění. Když na měřeném místě žádný dynamin není, fit proběhne úplně normálně — jen vyjde kopeček s výškou kolem nuly (klidně i nepatrně zápornou, to je přirozený projev šumu). Teprve p-hodnota pak řekne: „tohle není významné". <strong>Měření a rozhodnutí jsou dva oddělené kroky</strong> — program vždy poctivě změří a verdikt nechá na statistice.</p>
+
+  <p>Skutečné potíže nastávají jen ve třech situacích, a každá má jasně dané chování:</p>
+
+  <div class="tbl-wrap">
+  <table>
+    <tr><th>situace</th><th>co program udělá</th></tr>
+    <tr><td>Bod je moc blízko okraje obrazu</td><td>Okénko 23 × 23 se nevejde do snímku. Program bod přeskočí a označí <code>dnm_valid = 0</code>; výsledky jsou prázdné (NaN). V našich datech se to týká méně než 0,1 % bodů.</td></tr>
+    <tr><td>Posunutý fit „uletěl"</td><td>Když se fit 2 posune moc daleko, nebo najde absurdně vysoký kopeček, jeho výsledek se zahodí a potichu se použije fit 1 na zamčené pozici. O výsledek nepřijdete.</td></tr>
+    <tr><td>Nesmyslné souřadnice na vstupu</td><td>Souřadnice mimo rozsah snímků zastaví běh se srozumitelnou chybou; nečíselná pozice vrátí prázdný výsledek. Program nikdy nespadne uprostřed velkého měření kvůli jednomu bodu.</td></tr>
+  </table>
+  </div>
+
+  <div class="callout">
+    <p class="callout-label">Proč záporná čísla nevadí</p>
+    <p>Na místě bez signálu šum náhodně kolísá nad nulou i pod ní. Kdyby program záporné výšky zakazoval, průměry z prázdných míst by vycházely uměle kladné — a slabounký skutečný signál by se od nich nedal odlišit. Záporná hodnota u nevýznamného bodu je tedy známka poctivého měření, ne chyby.</p>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section id="normalizace">
+  <p class="q-tag">Otázka 4</p>
+  <h2>Jak je výsledná intenzita normalizována?</h2>
+  <p class="answer-one-line">Krátká odpověď: <strong>nijak — a je to záměr.</strong> Stejně to dělá i původní cmeAnalysis.</p>
+
+  <p>Výsledek je v <strong>surových jednotkách kamery</strong> — přesně v těch číslech, která kamera zapsala do souboru. Jediné, co je „odečtené", je místní pozadí, a to ne dodatečnou úpravou, ale samotnou konstrukcí měření: výška kopečku se od začátku měří od podlahy (viz obrázek u otázky 2).</p>
+
+  <p>Co se s číslem <em>nedělá</em>:</p>
+  <ul>
+    <li>žádná korekce vlastností kamery (ofset, zesílení),</li>
+    <li>žádná korekce blednutí fluoroforu v průběhu filmu (photobleaching),</li>
+    <li>žádné přepočítávání na fotony ani počty molekul,</li>
+    <li>žádné škálování mezi filmy.</li>
+  </ul>
+
+  <p>Důvod je jednoduchý: každá taková úprava je <em>rozhodnutí o interpretaci dat</em>, a to patří do rukou tomu, kdo data analyzuje — ne do měřicí funkce, kde by proběhlo neviditelně. Program proto vrací syrová čísla a úpravy nechává jako vědomé, oddělené kroky.</p>
+
+  <div class="callout warn">
+    <p class="callout-label">Jedno konkrétní varování</p>
+    <p>V balíku je připravený i nástroj na srovnání jasu mezi filmy (převzatý z cmeAnalysis). U tohoto datasetu ho ale <strong>nedoporučujeme zapínat</strong>: rozdíly mezi filmy jsou tu z velké části biologické — v každé buňce zabral knockdown dynaminu jinak silně. Srovnat filmy na stejný jas by znamenalo vymazat přesně ten efekt, který se snažíme změřit.</p>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section id="globalni">
+  <p class="q-tag">Otázka 5</p>
+  <h2>Používá výpočet statistiky z celého videa, nebo více videí?</h2>
+  <p class="answer-one-line">Samotné číslo vzniká <strong>z malého okénka</strong>. Globální informace vstupují jen dvě — a je dobré vědět které.</p>
+
+  <p>Tady se vyplatí rozlišit dvě patra programu:</p>
+
+  <h3>Patro 1 — měření (jedno číslo pro jeden bod)</h3>
+  <div class="tbl-wrap">
+  <table>
+    <tr><th>co vstupuje</th><th>odkud pochází</th><th>ovlivňuje výsledné číslo?</th></tr>
+    <tr><td>pixely okénka 23 × 23</td><td>jediné místo jediného snímku</td><td class="yes">ano — to je celé měření</td></tr>
+    <tr><td>šířka kopečku σ</td><td><strong>všech 23 filmů datasetu</strong> — změří se jednou z tisíců jasných teček a pak platí pro každé měření stejně</td><td class="yes">ano, ale jen mírně (ověřeno: ±9 % v σ pohne výsledkem o ~2 %)</td></tr>
+    <tr><td>nejjasnější a nejtmavší pixel snímku</td><td>celý aktuální snímek</td><td class="no">ne — slouží jen jako pojistka proti absurdním fitům</td></tr>
+  </table>
+  </div>
+
+  <h3>Patro 2 — klasifikace („má tahle dráha dynamin?")</h3>
+  <p>Navazující krok, který z jednotlivých měření podél dráhy rozhoduje, jestli je dráha dynamin-pozitivní, už celofilmové statistiky používá — a musí: aby poznal, co je „významně nad pozadím", potřebuje vědět, jak vypadá pozadí <em>tohoto konkrétního filmu</em>. Z 16 snímků rozprostřených filmem si změří rozdělení jasu na prázdných místech buňky (mimo jamky) a míru náhodných „falešných teček". Proti nim pak testuje každou dráhu, s přísností úměrnou její délce.</p>
+
+  <div class="callout clc">
+    <p class="callout-label">Shrnutí jedním dechem</p>
+    <p>Výsledné číslo pro jeden bod závisí na okénku kolem něj a na jedné konstantě změřené z celého datasetu. Celofilmové statistiky nevstupují do <em>čísla</em>, ale do <em>verdiktu</em>, jestli je číslo významné. Mezi různými videi se nesdílí nic — každý film má vlastní pozadí i vlastní verdikt.</p>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section id="nedela">
+  <p class="q-tag">Pro jistotu</p>
+  <h2>Co program záměrně nedělá</h2>
+  <ul>
+    <li><strong>Nehledá jamky.</strong> Souřadnice dodáváte vy; program na nich jen měří.</li>
+    <li><strong>Netrackuje.</strong> Spojování bodů do drah v čase se děje před ním.</li>
+    <li><strong>Nepracuje s časem.</strong> Číslo snímku je pro něj jen pořadové číslo; nezná interval mezi snímky, takže neumí sekundy, životnosti ani rychlosti.</li>
+    <li><strong>Nenormalizuje a nekoriguje</strong> — viz otázka 4.</li>
+    <li><strong>Nerozhoduje za vás.</strong> Vrací čísla a p-hodnoty; prahy a interpretace zůstávají v rukou analytika.</li>
+  </ul>
+</section>
+
+<!-- ============================================================ -->
+<section id="slovnicek">
+  <p class="q-tag">Příloha</p>
+  <h2>Malý slovníček</h2>
+  <dl class="gloss">
+    <div><dt>pixel</dt><dd>Jedna buňka obrazové mřížky; nese jediné číslo — kolik světla na ni dopadlo.</dd></div>
+    <div><dt>kopeček (Gaussova funkce)</dt><dd>Tvar, do kterého mikroskop rozmaže každou svítící tečku. Zvonovitá křivka popsatelná polohou, výškou a šířkou.</dd></div>
+    <div><dt>σ (sigma)</dt><dd>Šířka kopečku. Vlastnost mikroskopu a vlnové délky světla, ne vzorku — proto se měří jednou a pak drží pevná.</dd></div>
+    <div><dt>pozadí</dt><dd>Světlo, které svítí i tam, kde žádná tečka není — rozptýlené molekuly, odlesky, elektronika kamery. Model ho zachycuje jako „podlahu" pod kopečkem.</dd></div>
+    <div><dt>p-hodnota</dt><dd>Pravděpodobnost, že by stejně silný výsledek vznikl čirou náhodou v šumu. Čím menší, tím věrohodnější signál.</dd></div>
+    <div><dt>NaN</dt><dd>„Not a Number" — značka pro prázdný výsledek. V našich výstupech znamená jediné: bod ležel příliš blízko okraje obrazu.</dd></div>
+    <div><dt>master / slave kanál</dt><dd>Žargon cmeAnalysis: master je jasný ukazovací kanál (klathrin), slave je měřený kanál (dynamin).</dd></div>
+  </dl>
+</section>
+
+<footer>
+  CMEpython — Python port měření intenzity dynaminu z cmeAnalysis (DanuserLab, GPL-3.0).<br>
+  Věrnost portu je ověřena přímo proti původnímu programu: na 874 vzorcích z reálných dat se výsledky shodují na 7 i více desetinných míst.<br>
+  Technické detaily s odkazy do kódu: README projektu a technický report „Měření dynaminu v cmeAnalysis".
+</footer>
+
+</div>
+
+</body>
+</html>
