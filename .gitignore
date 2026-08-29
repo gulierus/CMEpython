@@ -37,3 +37,6 @@ mmc1.pdf
 matlab/filter_ref.mat
 matlab/maxproj_ch0.tif
 matlab/mask_ref.tif
+
+# Vystupy analyz
+out/

@@ -172,6 +172,25 @@ vylučují disky kolem pozic z trajektorií místo detekčních masek
 > **bez** duplikace okrajového pixelu — je to numpy `'reflect'`, nikoli
 > numpy `'symmetric'`. Záměna způsobí chyby až ~10³ v pásu u okraje.
 
+## Průběhy intenzity podle lifetime kohort
+
+Port `getIntensityCohorts.m` a statistiky z `plotIntensityCohorts.m`:
+dráhy se rozdělí podle životnosti do kohort (10/20/40/60/80/100/120 s),
+každá se převzorkuje na střední délku své kohorty včetně 5 bufferových
+snímků před vznikem a po zániku, a průměruje se — **nejdřív v každém
+filmu, pak přes filmy (SEM přes filmy, jak to dělá cmeAnalysis)**.
+Skript navíc rozdělí dráhy podle maximálního shape indexu:
+
+```bash
+python3 scripts/cohort_analysis.py --measured measured --movies "reconstructed registered" \
+    --framerate 2 --sigma-slave 2.6424 --sigma-master 1.4187 \
+    --slave-channel 2 --master-channel 0 --si-col cls --out out/cohorts
+```
+
+Výstup: `cohort_curves.csv` (t, průměr, SEM, medián, kvartily, počty)
+a dva grafy — kohorty barevně po skupinách a produktivní vs. abortivní
+po kohortách. Buffery se měří gap cestou portu (`interpTrack`).
+
 ## Vstupní kontroly
 
 `measure_movie` před měřením automaticky zkontroluje první použitý snímek
