@@ -40,3 +40,6 @@ matlab/mask_ref.tif
 
 # Vystupy analyz
 out/
+
+# Druhy (low-res) dataset -- data lokalne
+lr registered/

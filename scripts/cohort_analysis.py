@@ -236,7 +236,12 @@ def main(argv=None):
     all_tracks, si_col_used = [], None
     t_all = time.time()
     for p in files:
-        k = re.search(r"_(\d+)-traj", p.name).group(1)
+        m = re.search(r"_(\d+)(?:[-_]|$)", p.stem)      # prvni cislo za podtrzitkem
+        if not m:
+            print(f"VAROVANI: z nazvu {p.name} nejde precist cislo filmu -- preskakuji",
+                  file=sys.stderr)
+            continue
+        k = m.group(1)
         mv = sorted(vdir.glob(f"*_{k}_*.tif"))
         if len(mv) != 1:
             print(f"VAROVANI: {p.name}: {len(mv)} filmu -- preskakuji", file=sys.stderr)

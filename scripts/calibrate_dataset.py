@@ -30,7 +30,6 @@ from cmepython.psf_calibration import estimate_psf_sigma, apply_sigma_clamp  # n
 from cmepython.measure import movie_layout  # noqa: E402
 
 TOTAL_FRAMES = 40          # runDetection.m:66 -- celkovy rozpocet snimku
-CHANNELS = (0, 1, 2)
 
 
 def frame_indices(n_movies, movie_length):
@@ -47,11 +46,14 @@ def load_frames(args):
         return [tf.pages[page(t, channel)].asarray().astype(np.float64) for t in idx]
 
 
-def main(folder):
+def main(folder, out_path="psf_calibration.json"):
     paths = sorted(Path(folder).glob("*.tif"))
     if not paths:
         print(f"zadne .tif v {folder}"); return 1
     nd = len(paths)
+    with tifffile.TiffFile(paths[0]) as tf:
+        n_ch = movie_layout(tf)[1]
+    CHANNELS = tuple(range(n_ch))          # kanaly podle souboru, ne natvrdo
     nf = max(1, round(TOTAL_FRAMES / nd))
     print(f"dataset: {nd} filmu, {nf} snimek/film -> ~{nd * nf} snimku na kanal\n")
 
@@ -80,7 +82,7 @@ def main(folder):
         print(f"  SIGMA:        {sigma:.4f} px"
               f"{'  -> CLAMP na 1.1' if fired else '  (clamp neaktivni)'}\n", flush=True)
 
-    out = Path("psf_calibration.json")
+    out = Path(out_path)
     out.write_text(json.dumps(results, indent=2))
     print(f"ulozeno: {out}")
 
@@ -93,4 +95,6 @@ def main(folder):
 
 
 if __name__ == "__main__":
-    sys.exit(main(sys.argv[1] if len(sys.argv) > 1 else "reconstructed registered"))
+    folder = sys.argv[1] if len(sys.argv) > 1 else "reconstructed registered"
+    out = sys.argv[2] if len(sys.argv) > 2 else "psf_calibration.json"
+    sys.exit(main(folder, out))
