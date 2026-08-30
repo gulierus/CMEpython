@@ -18,6 +18,7 @@ Spusteni:  python3 scripts/classify_trajectories.py
 
 from __future__ import annotations
 
+import argparse
 import csv
 import glob
 import re
@@ -28,49 +29,58 @@ from pathlib import Path
 import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from cmepython.classification import background_stats, classify_tracks  # noqa: E402
+from cmepython.classification import background_stats, classify_track  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
+
+# Vychozi = prvni dataset; vse prepsatelne z CLI.
 MEASURED_DIR = ROOT / "measured"
 MOVIE_DIR = ROOT / "reconstructed registered"
-
-SIGMA_SLAVE = 2.6424     # psf_calibration.json, cely dataset
+SIGMA_SLAVE = 2.6424
 SLAVE_CHANNEL = 2
 MASTER_CHANNEL = 0
 
-# Pocet pixelu fitovaciho okna -- ODVOZENY ze sigmy, ne magicka konstanta.
-# Plati pro detekcni cestu bez maskovani sousedu (mereni v measured/ presne
-# tak vzniklo); pri zmene sigmy se prepocita sam.
-NPX = (2 * int(np.ceil(4 * SIGMA_SLAVE)) + 1) ** 2
-
 OUT_COLS = ["particle", "track_len", "n_detected", "thr_master",
             "significant_master", "n_above_bg", "thr_slave",
-            "significant_slave", "max_A"]
+            "significant_slave", "max_A", "max_master_A", "max_si"]
 
 
-def load_measured(path):
-    """Nacte measured CSV do {particle: vektory} + {frame: (ys, xs)}."""
+def movie_number(name):
+    m = re.search(r"_(\d+)(?:[-_]|$)", Path(name).stem)
+    return m.group(1) if m else None
+
+
+def load_measured(path, npx, si_col=None):
+    """Nacte measured CSV do {particle: vektory} + {frame: (ys, xs)}.
+
+    npx : pocet pixelu fitovaciho okna (odvozeny ze sigmy), pro
+          rekonstrukci SE_sigma_r stejne jako v mereni.
+    Pokud CSV obsahuje clc_A (master amplituda), ulozi se i max_master_A
+    pro podminku amplitudoveho pomeru (:151-153).
+    """
     per, byframe = {}, {}
     with open(path, newline="") as f:
-        for r in csv.DictReader(f):
+        rd = csv.DictReader(f)
+        has_master = "clc_A" in rd.fieldnames
+        si_col = si_col if (si_col and si_col in rd.fieldnames) else \
+            next((c for c in ("SI", "si", "shape_index", "cls") if c in rd.fieldnames), None)
+        for r in rd:
             pid = int(float(r["particle"]))
             t = int(float(r["frame"]))
             d = per.setdefault(pid, {k: [] for k in
                                      ("A", "A_pstd", "sigma_r", "SE_sigma_r",
-                                      "hval_Ar")})
+                                      "hval_Ar", "master_A", "si")})
             d["A"].append(float(r["dnm_A"]))
             d["A_pstd"].append(float(r["dnm_A_pstd"]))
             d["sigma_r"].append(float(r["dnm_sigma_r"]))
-            # SE_sigma_r v CSV neni -- dopocita se stejne jako v mereni:
-            # SE = sigma_r / sqrt(2*(NPX-1)), kde NPX je odvozene z
-            # SIGMA_SLAVE (viz vyse). Klasifikace pak npx z pomeru zpetne
-            # rekonstruuje presne jako MATLAB.
-            d["SE_sigma_r"].append(float(r["dnm_sigma_r"])
-                                   / np.sqrt(2 * (NPX - 1)))
+            d["SE_sigma_r"].append(float(r["dnm_sigma_r"]) / np.sqrt(2 * (npx - 1)))
             d["hval_Ar"].append(float(r["dnm_signif"]))
+            d["master_A"].append(float(r["clc_A"]) if has_master else np.nan)
+            try:
+                d["si"].append(float(r[si_col]) if si_col else np.nan)
+            except ValueError:
+                d["si"].append(np.nan)
             byframe.setdefault(t, [[], []])
-            # parsovat a testovat konecnost -- ne porovnavat retezec "nan",
-            # ktery by selhal na CSV z jineho zapisovace ("NaN", prazdno)
             try:
                 dy = float(r["dnm_y"]); dx = float(r["dnm_x"])
             except ValueError:
@@ -85,53 +95,82 @@ def load_measured(path):
     return per, byframe
 
 
-def main():
+def main(argv=None):
+    ap = argparse.ArgumentParser(description=__doc__,
+                                 formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--measured", default=str(MEASURED_DIR))
+    ap.add_argument("--movies", default=str(MOVIE_DIR))
+    ap.add_argument("--masks", default=None,
+                    help="slozka s maskami bunek (*_MASK.tif); bez ni se maska "
+                         "spocita z max-projekce master kanalu (getCellMask)")
+    ap.add_argument("--sigma-slave", type=float, default=SIGMA_SLAVE)
+    ap.add_argument("--slave-channel", type=int, default=SLAVE_CHANNEL)
+    ap.add_argument("--master-channel", type=int, default=MASTER_CHANNEL)
+    ap.add_argument("--si-col", default=None)
+    ap.add_argument("--out-suffix", default="-classified.csv")
+    a = ap.parse_args(argv)
+
+    npx = (2 * int(np.ceil(4 * a.sigma_slave)) + 1) ** 2
+    mdir, vdir = Path(a.measured), Path(a.movies)
+    masks = {}
+    if a.masks:
+        for p in Path(a.masks).glob("*.tif"):
+            masks[movie_number(p)] = p
+
     pairs = []
-    for p in sorted(MEASURED_DIR.glob("*-dynamin.csv")):
-        k = re.search(r"_(\d+)-traj", p.name).group(1)
-        mv = sorted(MOVIE_DIR.glob(f"*_{k}_RR.tif"))
+    for p in sorted(mdir.glob("*-dynamin.csv")):
+        k = movie_number(p)
+        mv = sorted(x for x in vdir.glob("*.tif") if movie_number(x) == k)
         if len(mv) == 1:
             pairs.append((k, p, mv[0]))
         else:
-            print(f"VAROVANI: {p.name} ma {len(mv)} odpovidajicich filmu"
-                  " -- preskakuji", file=sys.stderr)
-    print(f"{len(pairs)} filmu | sigma_slave={SIGMA_SLAVE}\n", flush=True)
+            print(f"VAROVANI: {p.name} ma {len(mv)} odpovidajicich filmu -- preskakuji",
+                  file=sys.stderr)
+    print(f"{len(pairs)} filmu | sigma_slave={a.sigma_slave} npx={npx} | masky: "
+          f"{'dodane (' + str(len(masks)) + ')' if masks else 'z max-projekce'}\n", flush=True)
 
-    summary = []
     for k, mp, tif in pairs:
         t0 = time.time()
-        per, byframe = load_measured(mp)
-        stats = background_stats(tif, byframe, SIGMA_SLAVE,
-                                 slave_channel=SLAVE_CHANNEL,
-                                 master_channel=MASTER_CHANNEL)
-        res = classify_tracks(per, stats["bg95"], stats["p_detection"])
+        per, byframe = load_measured(mp, npx, a.si_col)
+        cellmask = None
+        if k in masks:
+            import tifffile
+            cellmask = tifffile.imread(masks[k]) > 0
+        stats = background_stats(tif, byframe, a.sigma_slave,
+                                 slave_channel=a.slave_channel,
+                                 master_channel=a.master_channel,
+                                 cellmask=cellmask)
+        res = {}
+        for pid, d in per.items():
+            mm = np.nanmax(d["master_A"]) if np.isfinite(d["master_A"]).any() else None
+            r = classify_track(d["A"], d["A_pstd"], d["sigma_r"], d["SE_sigma_r"],
+                               d["hval_Ar"], stats["bg95"], stats["p_detection"],
+                               master_max_A=mm)
+            r.pop("significant_vs_background")
+            r["max_master_A"] = mm if mm is not None else np.nan
+            r["max_si"] = float(np.nanmax(d["si"])) if np.isfinite(d["si"]).any() else np.nan
+            res[pid] = r
 
-        out = mp.with_name(mp.name.replace("-dynamin.csv", "-classified.csv"))
+        out = mp.with_name(mp.name.replace("-dynamin.csv", a.out_suffix))
         with open(out, "w", newline="") as f:
             wr = csv.writer(f)
             wr.writerow(OUT_COLS)
             for pid in sorted(res):
                 r = res[pid]
                 wr.writerow([pid, r["track_len"], r["n_detected"],
-                             f"{r['thr_master']:.0f}",
-                             int(r["significant_master"]),
+                             f"{r['thr_master']:.0f}", int(r["significant_master"]),
                              r["n_above_bg"], f"{r['thr_slave']:.0f}",
-                             int(r["significant_slave"]),
-                             f"{r['max_A']:.2f}"])
+                             int(r["significant_slave"]), f"{r['max_A']:.2f}",
+                             f"{r['max_master_A']:.2f}", f"{r['max_si']:.4f}"])
 
-        lens = np.array([r["track_len"] for r in res.values()])
         sm = np.array([r["significant_master"] for r in res.values()])
         ss = np.array([r["significant_slave"] for r in res.values()])
-        long = lens >= 5                       # konvence Cutoff_f=5
-        summary.append((k, len(res), stats["bg95"], stats["p_detection"],
-                        100 * sm[long].mean(), 100 * ss[long].mean()))
         print(f"  film {k:>3}: {len(res):>6,} drah  bg95={stats['bg95']:>8.1f}"
               f"  pDet={stats['p_detection']:.4f}"
-              f"  master+={100*sm[long].mean():>5.1f}%"
-              f"  slave+={100*ss[long].mean():>5.1f}%  (drahy >=5 sn.)"
+              f"  master+={100*sm.mean():>5.1f}%  slave+={100*ss.mean():>5.1f}%"
               f"  {time.time()-t0:>5.1f}s", flush=True)
 
-    print("\nhotovo -> measured/*-classified.csv")
+    print(f"\nhotovo -> {mdir}/*{a.out_suffix}")
     return 0
 
 
