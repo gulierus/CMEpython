@@ -108,6 +108,8 @@ def main(argv=None):
     ap.add_argument("--master-channel", type=int, default=MASTER_CHANNEL)
     ap.add_argument("--si-col", default=None)
     ap.add_argument("--out-suffix", default="-classified.csv")
+    ap.add_argument("--alpha", type=float, default=0.05,
+                    help="hladina testu (cmeAnalysis 'Alpha': per-frame t-test i pDetection)")
     a = ap.parse_args(argv)
 
     npx = (2 * int(np.ceil(4 * a.sigma_slave)) + 1) ** 2
@@ -139,13 +141,13 @@ def main(argv=None):
         stats = background_stats(tif, byframe, a.sigma_slave,
                                  slave_channel=a.slave_channel,
                                  master_channel=a.master_channel,
-                                 cellmask=cellmask)
+                                 cellmask=cellmask, alpha=a.alpha)
         res = {}
         for pid, d in per.items():
             mm = np.nanmax(d["master_A"]) if np.isfinite(d["master_A"]).any() else None
             r = classify_track(d["A"], d["A_pstd"], d["sigma_r"], d["SE_sigma_r"],
                                d["hval_Ar"], stats["bg95"], stats["p_detection"],
-                               master_max_A=mm)
+                               alpha_sensitivity=a.alpha, master_max_A=mm)
             r.pop("significant_vs_background")
             r["max_master_A"] = mm if mm is not None else np.nan
             r["max_si"] = float(np.nanmax(d["si"])) if np.isfinite(d["si"]).any() else np.nan

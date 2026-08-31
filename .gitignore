@@ -43,3 +43,13 @@ out/
 
 # Druhy (low-res) dataset -- data lokalne
 lr registered/
+
+# Cizi repozitare naklonovane pro srovnani
+external/
+
+# balik pro vypocetni cluster (data + kopie ciziho kodu), neverzovat
+CME_for_Helios/
+CME_for_Helios.tar.gz
+
+# interni kontextovy dokument spoluprace -- jen lokalne
+CONTEXT.md

@@ -1,40 +1,57 @@
 # CMEpython
 
-Python port měření intenzity dynaminu z [cmeAnalysis](https://github.com/DanuserLab/cmeAnalysis)
-(DanuserLab, MATLAB).
+Python port měření intenzity slave kanálu z balíku
+[cmeAnalysis](https://github.com/DanuserLab/cmeAnalysis) (DanuserLab, MATLAB),
+vyvinutý pro měření dynaminu na drahách klatrinových jamek.
 
-Pro zadané souřadnice `[frame, y, x]` a TIRF video vrátí intenzitu dynaminu
-spočtenou stejným postupem jako cmeAnalysis. Čistě numpy/scipy — žádná
-kompilovaná rozšíření, žádný MATLAB, běží na Windows, Linuxu i obou
-generacích Maců.
+Pro zadané souřadnice `[snímek, y, x]` a TIRF video vrátí intenzitu dynaminu
+spočtenou stejným postupem jako cmeAnalysis: fit skvrnky tvaru PSF s pevnou
+šířkou, výsledkem je amplituda nad lokálním pozadím, její nejistota
+a p-hodnota. Čistě numpy/scipy — žádná kompilovaná rozšíření, žádný MATLAB;
+běží na Windows, Linuxu i obou generacích Maců. Numerická shoda s originální
+zkompilovanou binárkou je změřená (viz [Validace](#validace-proti-matlabu)).
+
+**Obsah:** [Instalace](#instalace) ·
+[Rychlý start](#rychlý-start) ·
+[Formát vstupů](#formát-vstupních-dat) ·
+[Pipeline krok za krokem](#pipeline-krok-za-krokem) ·
+[Přehled skriptů](#přehled-skriptů) ·
+[Jak port vznikal](#jak-port-vznikal-a-čím-se-liší-od-originálu) ·
+[Dokumentace měření](#dokumentace-měření) ·
+[Poznámky k našim datasetům](#poznámky-k-našim-datasetům) ·
+[Co v repozitáři není](#co-v-repozitáři-záměrně-není) ·
+[Testy](#testy) · [Licence](#licence)
 
 ## Instalace
 
 ```bash
+git clone https://github.com/gulierus/CMEpython.git
+cd CMEpython
 pip install -e .
 ```
 
-Závislosti: `numpy`, `scipy`, `tifffile`. Pro testy `pip install -e ".[dev]"`.
+Jádro (`cmepython/`) potřebuje jen `numpy`, `scipy`, `tifffile`.
+Analytické skripty (`scripts/compare_*`, `scripts/report_*`, kohorty) navíc
+`pandas` a `matplotlib`:
 
-## Dokumentace
+```bash
+pip install pandas matplotlib
+```
 
-Srozumitelný popis toho, co program s daty dělá — psaný i pro čtenáře
-bez technického zázemí; odpovídá na pět otázek ze zadání (vyhledávání
-blobu, fitování a výsledná intenzita, selhání fitu, normalizace,
-globální statistiky):
-
-- **[docs/how-dynamin-is-measured.md](docs/how-dynamin-is-measured.md)** — anglicky, markdown
-- **[docs/jak-merime-dynamin.html](docs/jak-merime-dynamin.html)** — česky,
-  stylovaná stránka s diagramy (otevři v prohlížeči)
+PDF verze protokolů vyžaduje LaTeX (`latexmk` + `xelatex`); bez něj skripty
+doběhnou s `--skip-pdf` nebo vypíší varování a nechají markdown a `.tex`.
+Testy: `pip install -e ".[dev]"` a `pytest`.
 
 ## Rychlý start
+
+Jeden bod:
 
 ```python
 from cmepython import dynamin_intensity
 
 r = dynamin_intensity(video, frame, y, x,
-                      sigma_slave=2.6424,     # šířka PSF měřicího kanálu
-                      sigma_master=1.4187)    # šířka PSF kanálu s detekcemi
+                      sigma_slave=1.4356,     # šířka PSF měřicího kanálu [px]
+                      sigma_master=1.6424)    # šířka PSF kanálu s detekcemi [px]
 
 r["A"]        # amplituda gaussovky nad lokálním pozadím — hledaná intenzita
 r["c"]        # fitované lokální pozadí
@@ -43,8 +60,7 @@ r["pval_Ar"]  # p-hodnota testu proti šumu
 r["hval_Ar"]  # bool: signál je významný
 ```
 
-Pro víc než pár bodů použij dávkovou variantu — čte snímky lazy z disku
-a volitelně paralelizuje:
+Víc bodů najednou — čte snímky lazy z disku a volitelně paralelizuje:
 
 ```python
 from cmepython import measure_movie
@@ -52,228 +68,283 @@ import numpy as np
 
 coords = np.array([[frame, y, x], ...])       # (N, 3)
 res = measure_movie("film.tif", coords,
-                    sigma_slave=2.6424, sigma_master=1.4187,
-                    slave_channel=2, workers=0)   # 0 = všechna jádra
+                    sigma_slave=1.4356, sigma_master=1.6424,
+                    slave_channel=1, master_channel=0,
+                    workers=0)                # 0 = všechna jádra, None/1 = sériově
 res["A"]      # pole intenzit, jeden prvek na řádek coords
 ```
 
-> Pod `spawn` (macOS, Windows) musí být volání paralelní varianty ve skriptu
-> s `if __name__ == "__main__":`. Z interaktivní session to spadne na
-> serialní běh s varováním, ne s chybou.
+> Pod `spawn` (macOS, Windows) musí být paralelní volání ve skriptu
+> s `if __name__ == "__main__":`. Z interaktivní session spadne na sériový
+> běh s varováním, ne s chybou.
 
-## Celý postup
+## Formát vstupních dat
 
-```
-1. Kalibrace šířky PSF     scripts/calibrate_dataset.py
-2. Měření na souřadnicích  scripts/measure_trajectories.py
-3. Srovnání napříč filmy   cmepython.scale_edfs
-```
+**Filmy:** vícestránkový TIFF. Osy se čtou z metadat; podporované rozložení
+TCYX, ZCYX, CYX, ZYX i YX (`cmepython.measure.movie_layout`). Kanály se
+adresují indexem (`slave_channel` = měřený kanál, `master_channel` = kanál,
+ve kterém vznikly detekce).
 
-**1. Šířka PSF** se odhaduje z dat, ne z optiky — stejně jako cmeAnalysis ve
-výchozím nastavení. Vzorkuje ~40 snímků rozprostřených přes **všechny filmy
-podmínky**, ne z jednoho filmu:
+**Trajektorie:** CSV s minimálně sloupci `particle` (id dráhy), `frame`
+(index snímku, 0-based), `x`, `y` (pixely; `x` = sloupec, `y` = řádek,
+stejná konvence jako v obrazových polích). Volitelné sloupce (`cls` = shape
+index, `cluster`, …) projdou do výstupu beze změny.
+
+**Párování film ↔ CSV:** skripty párují soubory podle čísla filmu v názvu
+(regulární výraz `_(\d+)[-_]`), např. `..._16_LRR.tif` ↔
+`..._16-lr-trajectories.csv`.
+
+## Pipeline krok za krokem
+
+Celý postup od syrových filmů k výsledkům. Každý skript má `--help`
+se všemi volbami.
+
+### 1. Kalibrace šířky PSF
+
+Šířka σ se odhaduje z dat, ne z optiky — stejně jako výchozí chování
+cmeAnalysis (`getGaussianPSFsigmaFromData.m`): detekce s pevnou σ, volný fit
+`xyasc`, filtrace neúspěšných fitů, směs gaussovek 1–3 komponent podle BIC,
+vybere se komponenta s nejvyšším vrcholem. Vzorkuje ~40 snímků napříč
+**všemi filmy podmínky** (jedna σ na kanál na podmínku, jako cmeAnalysis):
 
 ```bash
-python3 scripts/calibrate_dataset.py "reconstructed registered"
+python3 scripts/calibrate_dataset.py "lr registered" --out psf_calibration_lr.json
 ```
 
-**2. Měření** proběhne na souřadnicích z CSV s trajektoriemi; k původním
-sloupcům přibudou hodnoty s prefixem `dnm_`:
+Výstupní JSON obsahuje σ pro každý kanál včetně diagnostiky (BIC, komponenty,
+počty spotů). cmeAnalysis hodnoty pod 1,1 px zvedá na 1,1 (`runDetection.m:90`);
+port to dělá také a hlásí to.
+
+### 2. Měření intenzity na drahách
 
 ```bash
-python3 scripts/measure_trajectories.py
+python3 scripts/measure_trajectories.py \
+    --traj-dir "lr registered/trajectories" --movie-dir "lr registered" \
+    --out-dir "lr registered/measured" \
+    --sigma-slave 1.4356 --sigma-master 1.6424 \
+    --slave-channel 1 --master-channel 0 --also-master --workers 0
 ```
 
-**3. Škálování napříč filmy** srovná systematické rozdíly mezi filmy
-před poolováním:
+Ke sloupcům vstupního CSV přibudou (prefix `dnm_` = slave/dynamin,
+`clc_` = master/clathrin při `--also-master`):
 
-```python
-from cmepython import scale_edfs
-a, c, ref = scale_edfs([max_amplitudy_filmu_1, max_amplitudy_filmu_2, ...])
+| sloupec | význam |
+|---|---|
+| `dnm_A`, `dnm_c` | amplituda nad lokálním pozadím a pozadí [jednotky kamery] |
+| `dnm_A_pstd` | nejistota amplitudy (šířená z fitu, stupně volnosti jako MEX) |
+| `dnm_sigma_r` | směrodatná odchylka reziduí fitu |
+| `dnm_pval`, `dnm_signif` | p-hodnota a verdikt testu signálu proti šumu (α = 0,05) |
+| `dnm_x`, `dnm_y` | doladěná poloha (volný fit přijat při posunu < 3σ_master a vyšší A) |
+| `dnm_valid` | fit uvnitř obrazu (`False` jen u okna přes okraj) |
+| `track_len` | délka dráhy ve snímcích |
+
+Prázdné místo **není chyba**: vrací A ≈ 0 a p ≈ 1. Měření a rozhodnutí
+o pozitivitě jsou oddělené kroky.
+
+Před měřením proběhnou **vstupní kontroly** (`validate=True`): detekce
+SIM pruhů ve spektru (na jednotlivém raw TIRF-SIM snímku fit tiše lže;
+řešení je zprůměrovat devítice) a kontrola registrace kanálů FFT křížovou
+korelací (posun nad 1 px varuje). Nálezy jsou varování, ne chyby.
+
+### 3. Klasifikace dynamin-pozitivních drah
+
+Port Aguetovy statistické klasifikace (`runSlaveChannelClassification.m`).
+Dva testy na dráhu, oba binomicky korigované na její délku: `significant_master`
+(počet významných detekcí proti náhodě dané `p_detection` filmu)
+a `significant_slave` (počet snímků s amplitudou nad 95. percentilem pozadí
+filmu, t-test; výchozí režim „s" navazujících nástrojů cmeAnalysis).
+
+```bash
+python3 scripts/classify_trajectories.py \
+    --measured "lr registered/measured" --movies "lr registered" \
+    --masks "lr registered/masks" \
+    --sigma-slave 1.4356 --slave-channel 1 --master-channel 0
+# citlivost testu: --alpha 0.01   jiny vystup: --out-suffix "-classified-a0.01.csv"
 ```
 
-> **Rozmyslete si, jestli ho chcete.** Na tomto datasetu je rozptyl mezi
-> filmy převážně biologický, ne technický: dynaminové amplitudy kolísají
-> 17,2× (CV 77 %), zatímco pozadí téhož kanálu jen 2,3× (CV ~30 %) a
-> clathrin ~1,5–2,2× (CV 12–16 % podle snímku); korelace dynaminu s
-> clathrinem je s n = 15 nerozlišitelná od nuly. Akviziční složka do ~2×
-> se vyloučit nedá, ale 17× rozdíl nevysvětlí — u siRNA knockdownu se
-> účinnost liší buňka od buňky. Škálování by tedy smazalo právě ten efekt,
-> který se měří. Porovnejte výsledky s ním i bez něj.
+Výstup na dráhu: `particle, track_len, n_detected, thr_master,
+significant_master, n_above_bg, thr_slave, significant_slave, max_A,
+max_master_A, max_si`. Pozadí filmu se počítá z míst uvnitř buněčné masky
+dál než 4σ od všech detekcí; masky lze dodat (`--masks`), jinak se odhadnou
+z maximální projekce.
 
-## Co přesně reprodukuje
+> Výchozí cesty skriptu míří na první dataset; pro jiný **vždy** zadejte
+> `--measured/--movies/--masks/--sigma-slave/--slave-channel/--master-channel`.
 
-| Modul | Originál v cmeAnalysis |
+### 4. Průběhy intenzity podle lifetime kohort
+
+Port `getIntensityCohorts.m` + statistik z `plotIntensityCohorts.m`: dráhy
+se rozdělí podle životnosti (meze 10/20/40/60/80/100/120 s), převzorbují
+kubicky na střední délku kohorty včetně 5 bufferových snímků před vznikem
+a po zániku (měřeno gap cestou portu `interpTrack`), a průměrují — nejdřív
+v každém filmu, pak přes filmy (SEM přes filmy, jako cmeAnalysis):
+
+```bash
+python3 scripts/cohort_analysis.py \
+    --measured "lr registered/measured" --movies "lr registered" \
+    --framerate 2 --sigma-slave 1.4356 --sigma-master 1.6424 \
+    --slave-channel 1 --master-channel 0 --si-col cls --out out/lr_cohorts
+```
+
+Výstup: `cohort_curves.csv` a dva grafy (kohorty; produktivní vs. abortivní
+podle `max SI > 0,7`).
+
+### 5. Porovnání klasifikací a protokol (úloha B)
+
+Tři skripty na sebe navazují:
+
+```bash
+python3 scripts/compare_classifications.py          # confusion matrix + JSON
+python3 scripts/compute_boxmean.py                  # box-mean 5×5 readout na týchž drahách
+python3 scripts/report_classification_comparison.py # kompletní protokol (md + tex + pdf)
+```
+
+Protokol obsahuje mozaiku confusion matic po délkových pásmech, kompletní
+metrikovou tabulku s 95% intervaly bootstrapem po filmech, length-adjusted
+OR (Mantel–Haenszel), within-band AUC, sweep přes α, Hodgesovy–Lehmannovy
+posuny a van Elterenův test. Sweep přes α vyžaduje předpočítané klasifikace
+(`--alpha A --out-suffix=-classified-aA.csv`, viz krok 3).
+
+### 6. Korpusy pro detektor dynaminové pozitivity (úloha A)
+
+`scripts/build_cme_corpus.py` převede naměřené dráhy do formátu korpusu
+Shape2Fate (dvě varianty: surová amplituda a amplituda dělená biexponenciálním
+fitem průměrů snímků buňky; konvence `intenzita = 1 + amplituda`, práh
+`thresholds_q90.json`). Trénink samotný běží kódem spolupracujícího projektu
+(větev `release/dynamin-confusion-v1` repozitáře Shape2Fate_Fake2Emulate)
+na výpočetním clusteru; srovnávací protokol generuje
+`scripts/report_detector_comparison.py`.
+
+### 7. Validace proti MATLABu
+
+```bash
+matlab -batch export_fits                      # matlab/export_fits.m (jen jednou)
+python3 scripts/validate_against_matlab.py
+```
+
+Vyžaduje MATLAB s toolboxy Image Processing a Statistics; referenční výstup
+MEX binárky pro 874 oken je ale commitnutý (`matlab/mex_reference.mat`),
+takže samotné srovnání běží i bez MATLABu.
+
+## Přehled skriptů
+
+| skript | účel |
+|---|---|
+| `calibrate_dataset.py` | odhad σ PSF z dat, celý dataset najednou |
+| `measure_trajectories.py` | měření intenzity na drahách → `*-dynamin.csv` |
+| `classify_trajectories.py` | Aguetova klasifikace drah → `*-classified.csv` |
+| `cohort_analysis.py` | lifetime kohorty, křivky + grafy |
+| `compare_classifications.py` | confusion matrix SI vs. cmeAnalysis |
+| `compute_boxmean.py` | box-mean 5×5 readout na pozicích drah |
+| `report_classification_comparison.py` | protokol úlohy B (md/tex/pdf) |
+| `build_cme_corpus.py` | korpusy pro trénink detektoru (2 varianty) |
+| `report_detector_comparison.py` | protokol úlohy A: srovnání detektorů |
+| `validate_against_matlab.py` | numerické srovnání s MEX binárkou |
+| `dataset_findings.py` | reprodukce datasetových nálezů (bleaching, FP rate) |
+| `bench_measure.py` | benchmark měření |
+
+## Jak port vznikal a čím se liší od originálu
+
+Klíčová funkce cmeAnalysis `fitGaussian2D` existuje jen jako zkompilovaná
+MEX binárka bez zdrojáku (Levenberg–Marquardt z GSL). Port ji proto
+**rekonstruuje podle chování** a shodu měří přímo proti binárce na 874
+oknech z reálných dat: amplitudy, pozadí a rezidua sedí na medián relativního
+rozdílu 10⁻⁸ až 10⁻¹⁶, lokalizace na ~5×10⁻⁷ px (max ~10⁻³; poloha je nejhůř
+podmíněný parametr). Akceptační test volného fitu propouští stejná okna
+(567 z 874). Vyšší vrstvy (klasifikace, kohorty, kalibrace) jsou přepsané
+řádek po řádku podle otevřených `.m` zdrojů; komentáře v kódu odkazují
+`soubor.m:řádek`.
+
+Poznatky, které při portování stály nejvíc času (a v kódu jsou zohledněné):
+
+- **`padarrayXT('symmetric')` je numpy `'reflect'**, ne numpy `'symmetric'`
+  — MATLAB zrcadlí bez duplikace okrajového pixelu. Záměna dá chyby ~10³
+  v pásu u okraje.
+- **MEX počítá stupně volnosti `npx − n_free − 1`**, o jeden méně než běžná
+  konvence. Bez převzetí jsou `A_pstd` a všechny p-hodnoty o ~0,1 % vyšší.
+- **`sum(pval<Alpha)/sum(cellmask)` na 2D maticích je v MATLABu maticové
+  dělení** (mrdivide), ne podíl počtů. Port reprodukuje skutečně vykonávaný
+  výpočet `p_detection`.
+- **σ se na slave kanálu nikdy nefituje** — módy `Ac`/`xyAc` mají šířku
+  pevnou; volný fit `xyasc` slouží jen kalibraci. σ < 1,1 px se zvedá na 1,1.
+- **Poloha není striktně fixní**: po fitu s pevnou polohou se zkusí volný
+  a přijme se při posunu < 3σ_master a vyšší amplitudě (`runDetection.m:180-190`).
+- Jedna vědomá odchylka: CCS oblasti se z pozadí vylučují disky kolem pozic
+  z trajektorií místo detekčních masek `dmasks.tif`, které bez běhu celé
+  MATLAB pipeline neexistují.
+
+Mapa modulů na originál:
+
+| modul | originál v cmeAnalysis |
 |---|---|
 | `slave_intensity.dynamin_intensity` | `runDetection.m:180-190` + `fitGaussians2D.m` |
 | `slave_intensity.dynamin_intensity_gap` | `runTrackProcessing.m:879-926` (`interpTrack`) |
 | `psf_calibration.estimate_psf_sigma` | `getGaussianPSFsigmaFromData.m` |
-| `psf_calibration.apply_sigma_clamp` | `runDetection.m:90-92` |
+| `classification.background_stats` / `classify_track` | `runSlaveChannelClassification.m` |
+| `cohorts.cohort_curves` | `getIntensityCohorts.m` + `plotIntensityCohorts.m` |
+| `background.filter_gaussian_fit_2d`, `mask_from_first_mode` | `filterGaussianFit2D.m`, maskovací větev |
 | `edf_scaling.scale_edfs` | `scaleEDFs.m` |
-| `measure.*` | smyčka přes detekce + `readtiff` |
+| `validation.*` | vlastní vstupní kontroly (SIM pattern, registrace) |
 
-Odkazy `soubor.m:řádek` v komentářích míří do `cmeAnalysis/software/`.
-Upstream si naklonuj zvlášť, v repu není:
+Upstream si naklonuj zvlášť, v repozitáři není:
 
 ```bash
 git clone https://github.com/DanuserLab/cmeAnalysis.git
 ```
 
-## Data tohoto projektu
+## Dokumentace měření
 
-Filmy ve složce `reconstructed registered/` jsou **TIRF-SIM**: ch0 = clathrin
-(SIM rekonstrukce, červený), ch1 = dynamin (SIM rekonstrukce, zelený),
-**ch2 = zprůměrovaný raw dynamin TIRF, 2× upsamplovaný a registrovaný na
-clathrin — na něm se měří**. Pixel: 79,1 nm v raw rozlišení, tedy
-**39,55 nm/px** v gridu těchto souborů; NA = 1,5. Červený a zelený kanál
-jdou jinou optickou dráhou (jiná PSF, jiná frekvence SIM patternu).
+Srozumitelný popis, co program s daty dělá — psaný i pro čtenáře bez
+technického zázemí (vyhledávání blobu, fitování a co je výsledná intenzita,
+selhání fitu, normalizace, globální statistiky):
 
-Naměřené σ tomu odpovídají: ch2 má FWHM ~246 nm proti difrakčnímu limitu
-~172 nm (1,4× širší — průměrování 9 SIM snímků + interpolace při
-upsamplingu; proto je správně σ odhadovat z dat, ne z optiky, což je
-i výchozí chování cmeAnalysis). ch0/ch1 mají FWHM 132/82 nm, tedy pod
-difrakčním limitem, jak má SIM rekonstrukce — **PSF model cmeAnalysis na
-ně nepatří** a měřit se na nich nemá.
+- **[docs/how-dynamin-is-measured.md](docs/how-dynamin-is-measured.md)** — anglicky, markdown
+- **[docs/jak-merime-dynamin.html](docs/jak-merime-dynamin.html)** — česky,
+  stránka s diagramy (otevři v prohlížeči)
 
-Interval mezi snímky zůstává nedohledaný (odhad z rozdělení životností:
-~1,5–3 s).
+## Poznámky k našim datasetům
 
-## Klasifikace dynamin-pozitivních drah
+Hodnoty σ pro oba datasety projektu jsou commitnuté
+(`psf_calibration.json`, `psf_calibration_lr.json`), aby čísla ve skriptech
+nebyla magické konstanty.
 
-Port Aguetovy statistické klasifikace (`runSlaveChannelClassification.m`;
-zadání na ni odkazuje jako na „druhý relevantní odstavec Methods"). Dva
-nezávislé testy na dráze, oba binomicky korigované na její délku:
+**Dataset 1, `reconstructed registered/`** (TIRF-SIM, 1024², 39,55 nm/px):
+ch0 = clathrin (SIM rekonstrukce), ch1 = dynamin (SIM rekonstrukce),
+**ch2 = zprůměrovaný raw dynamin TIRF, 2× upsamplovaný, registrovaný — na něm
+se měří** (σ 2,6424 px). SIM rekonstrukce mají FWHM pod difrakčním limitem
+a PSF model na ně nepatří. Interval mezi snímky nedohledán (odhad 1,5–3 s).
 
-1. **`significant_master`** — je počet významných detekcí podél dráhy
-   vyšší, než kolik by náhodně nasbírala dráha téže délky? Očekávanou
-   náhodu dává `p_detection`, změřená přes 16 snímků filmu.
-2. **`significant_slave`** — je počet bodů s amplitudou významně nad
-   95. percentilem pozadí (`bg95`) vyšší než očekávaných 5 % falešných
-   pozitiv?
+**Dataset 2, `lr registered/`** (512², 79,1 nm/px, 2 s/snímek, NA 1,5):
+ch0 = clathrin (σ 1,6424 px), ch1 = dynamin (σ 1,4356 px); oba kanály
+registrované, dynamin je průměr 9 SIM expozic (simulovaný TIRF).
 
-```bash
-python3 scripts/classify_trajectories.py     # -> measured/*-classified.csv
-```
+Ověřené vlastnosti měření na těchto datech (reprodukce
+`scripts/dataset_findings.py`):
 
-```python
-from cmepython import background_stats, classify_tracks
-stats = background_stats(film, positions_by_frame, sigma_slave=2.6424)
-vysledky = classify_tracks(drahy, stats["bg95"], stats["p_detection"])
-```
+- **Rozptyl mezi filmy je převážně biologický** — dynaminové amplitudy
+  kolísají 17×, pozadí ~2,3×, clathrin ~1,5–2×. EDF škálování
+  (`scale_edfs`) by smazalo měřený efekt; používat vědomě.
+- **Photobleaching**: ~12–17 % na 100 snímků pro dráhy ≥ 15 snímků; původní
+  vyšší odhady nafukovala levá cenzura. Port korekci nezavádí (cmeAnalysis
+  ji také nemá); vhodnější je čas vzniku dráhy jako kovariáta.
+- **Test významnosti je konzervativní**: na prázdném pozadí ~0,1–0,3 %
+  falešně pozitivních při nominálních 5 %. U 2× upsamplovaného kanálu není
+  šum sousedních pixelů nezávislý; korekce na efektivní počet pixelů mění
+  < 1 % rozhodnutí.
 
-Vstupy klasifikace (`filter_gaussian_fit_2d` — celoplošný fit,
-`mask_from_first_mode` — maska buňky) jsou validované proti MATLABu:
-fit na strojovou přesnost (max |Δ| 3,6×10⁻¹¹ na reálném snímku), maska
-s Jaccardem 0,9996. Jedna vědomá odchylka: CCS oblasti se z pozadí
-vylučují disky kolem pozic z trajektorií místo detekčních masek
-`dmasks.tif`, které bez běhu celé MATLAB pipeline neexistují.
+## Co v repozitáři záměrně není
 
-> Pozn. pro portování: `padarrayXT('symmetric')` v cmeAnalysis zrcadlí
-> **bez** duplikace okrajového pixelu — je to numpy `'reflect'`, nikoli
-> numpy `'symmetric'`. Záměna způsobí chyby až ~10³ v pásu u okraje.
+Repozitář obsahuje jen kód a dokumentaci. Lokálně (mimo git) žijí:
 
-## Průběhy intenzity podle lifetime kohort
-
-Port `getIntensityCohorts.m` a statistiky z `plotIntensityCohorts.m`:
-dráhy se rozdělí podle životnosti do kohort (10/20/40/60/80/100/120 s),
-každá se převzorkuje na střední délku své kohorty včetně 5 bufferových
-snímků před vznikem a po zániku, a průměruje se — **nejdřív v každém
-filmu, pak přes filmy (SEM přes filmy, jak to dělá cmeAnalysis)**.
-Skript navíc rozdělí dráhy podle maximálního shape indexu:
-
-```bash
-python3 scripts/cohort_analysis.py --measured measured --movies "reconstructed registered" \
-    --framerate 2 --sigma-slave 2.6424 --sigma-master 1.4187 \
-    --slave-channel 2 --master-channel 0 --si-col cls --out out/cohorts
-```
-
-Výstup: `cohort_curves.csv` (t, průměr, SEM, medián, kvartily, počty)
-a dva grafy — kohorty barevně po skupinách a produktivní vs. abortivní
-po kohortách. Buffery se měří gap cestou portu (`interpTrack`).
-
-## Vstupní kontroly
-
-`measure_movie` před měřením automaticky zkontroluje první použitý snímek
-(`validate=True`, výchozí):
-
-- **SIM pattern** — jednotlivý raw TIRF-SIM snímek má přes sebe pruhy
-  strukturovaného osvětlení; amplituda pak závisí na poloze spotu vůči
-  pruhům a fit tiše lže. Detekce přes bodové píky ve 2D výkonovém spektru
-  proti lokálnímu pozadí (reálná zprůměrovaná data ~4–7, pruhy >1000,
-  práh 10). Řešení: zprůměrovat odpovídající 9-tice.
-- **Registrace kanálů** (jen při zadaném `master_channel`) — posun kanálů
-  ~1 px stojí u slabého signálu desítky procent amplitudy. Měří se FFT
-  křížovou korelací; při posunu nad `shift_warn_px` (výchozí 1 px) varuje,
-  při slabé korelaci řekne „nelze ověřit", ne „v pořádku".
-
-Nálezy jsou **varování, ne chyby** — měření pokračuje; uživatel může mít
-důvod pokračovat vědomě.
-
-Kalibrace σ je automatizovatelná: `sigma_slave=None` ji odhadne přímo
-z daného filmu (a varuje s použitou hodnotou). Pro srovnatelnost napříč
-filmy je ale správnější kalibrovat jednou přes celý dataset
-(`scripts/calibrate_dataset.py`) a hodnotu předávat — přesně jak to dělá
-cmeAnalysis (jedna σ na kanál na podmínku).
-
-## Co je dobré vědět
-
-**Intenzita je amplituda gaussovky nad lokálním pozadím, v surových
-kamerových jednotkách.** Není to integrovaná intenzita ani hodnota vrcholového
-pixelu. Žádná normalizace se v per-detekčním výpočtu nedělá — cmeAnalysis
-nemá ani korekci offsetu kamery, ani korekci bleachingu.
-
-**Prázdné místo nevrací chybu, ale číslo blízko nule.** Měření a rozhodnutí,
-jestli tam dynamin je, jsou oddělené kroky; nevýznamnost se pozná z
-`pval_Ar`, ne z `NaN`. `NaN` znamená jen, že se okno nevešlo do snímku.
-
-**Photobleaching je reálný, ale menší, než se zdá.** Po vyloučení drah
-cenzurovaných na obou koncích filmu a kontrole délky klesá vrcholová
-amplituda dynaminu postupně: ~12–17 % na 100 snímků pro dráhy ≥ 15 snímků,
-~30 % pro krátké (10–15 snímků); pokles není soustředěný do začátku filmu.
-Pozadí klesá typicky ~5 % (nejhorší film −9 %), celý snímek ~4 % — vyhasíná
-vázaná frakce, volný pool se doplňuje difuzí. Původní odhady −44 % až −62 %
-nafukovala hlavně levá cenzura: dráhy začínající ve snímku 0 jsou fragmenty
-už existujících jasných struktur (medián max A ~8300 proti ~2800 u skutečných
-zrodů). cmeAnalysis korekci nemá a tento port ji také nezavádí: spolehlivější
-je zahrnout čas vzniku dráhy jako kovariátu než hodnoty upravovat a riskovat,
-že se s bleachingem odečte i biologie.
-
-**Test významnosti je konzervativní, ne liberální.** Netestuje „je tam
-signál", ale „je tam signál silnější než 1,96 σ šumu". Na skutečně prázdném
-pozadí vychází ~0,1–0,3 % falešně pozitivních při nominální hladině 5 %
-(podle snímku a konstrukce nulové sady)
-(horní mez ~1 %, pokud se do „prázdných" pozic připustí slabé zdroje pod
-detekčním prahem — právě ty tvoří většinu zdánlivých falešných pozitiv).
-Pro slabý dynamin je to záměrně přísné.
-
-Související: měřicí kanál tohoto datasetu je 2× zvětšený, takže sousední
-pixely nemají nezávislý šum (1D integrál autokorelace τ ≈ 2,8; 2D ≈ 20).
-Korekce na efektivní počet pixelů nepřehodí na prázdných pozicích žádné
-rozhodnutí a na signálních méně než 1 % (výhradně hraniční pozitiva) —
-statistiku ovládá odečet 1,96 σ, ne jmenovatel. Reprodukce:
-`scripts/dataset_findings.py`.
-
-**Sigma se na slave kanálu nikdy nefituje.** Módy `Ac` a `xyAc` mají šířku
-pevnou. Volný fit šířky (`xyasc`) slouží výhradně kalibraci.
-
-**Numerická shoda s MATLABem je ověřená.** `fitGaussian2D` je v cmeAnalysis
-zkompilovaná binárka bez zdrojáku (Levenberg–Marquardt z GSL), takže je
-rekonstruovaná podle chování, ne přeložená. Shoda je ale změřená přímo proti
-té binárce na 874 oknech z reálných dat: amplitudy, pozadí a rezidua sedí
-na medián relativního rozdílu 10⁻⁸ až 10⁻¹⁶; lokalizace (dx, dy) na ~5×10⁻⁷
-(max ~10⁻³ — poloha je nejhůř podmíněný parametr nelineárního fitu).
-Srovnání módu `xyAc` pokrývá 567 z 874 oken; zbytek vyřadil akceptační test
-(`fitGaussians2D.m:198`), který port zrcadlí:
-
-```bash
-matlab -batch export_fits                      # matlab/export_fits.m
-python3 scripts/validate_against_matlab.py
-```
-
-Validace odhalila jednu skutečnou odchylku, která je teď opravená: MEX počítá
-stupně volnosti jako `npx - n_free - 1`, tedy o jeden méně než běžná konvence.
-Bez opravy byly `A_pstd` a všechny odvozené p-hodnoty systematicky vyšší
-o 0,1 %.
+| co | kde lokálně |
+|---|---|
+| filmy a masky | `reconstructed registered/`, `lr registered/` |
+| trajektorie a všechna naměřená CSV | `lr registered/trajectories/`, `lr registered/measured/` |
+| protokoly s výsledky (úlohy A i B) | `lr registered/comparison_report/`, `CME_for_Helios/report/` |
+| kohortové výstupy | `lr registered/cohorts/`, `out/` |
+| balík pro výpočetní cluster (korpusy + cizí kód) | `CME_for_Helios/` |
+| klon cmeAnalysis a publikace | `cmeAnalysis/`, `Aguet13.pdf`, `mmc1.pdf` |
+| velké validační reference | `matlab/filter_ref.mat` aj. (přegenerují se) |
 
 ## Testy
 
@@ -281,20 +352,10 @@ o 0,1 %.
 python3 -m pytest tests/ -q
 ```
 
-Pro validaci proti MATLABu jsou potřeba toolboxy **Image Processing**
-a **Statistics and Machine Learning**. Pokud je licence zahrnuje, ale nejsou
-nainstalované, doinstalují se bez GUI:
-
-```bash
-curl -sL -o mpm https://www.mathworks.com/mpm/maca64/mpm && chmod +x mpm
-./mpm install --destination=/Applications/MATLAB_R2026a.app --release=R2026a \
-    --products Image_Processing_Toolbox Statistics_and_Machine_Learning_Toolbox
-```
-
 Testy ověřují chování odvozené ze zdrojáku cmeAnalysis a vnitřní konzistenci
 (dávka == bod po bodu). Numerickou shodu s MATLABem ověřuje zvlášť
-`scripts/validate_against_matlab.py` — vyžaduje nainstalovaný MATLAB.
+`scripts/validate_against_matlab.py` (viz krok 7 pipeline).
 
 ## Licence
 
-GPL-3.0-or-later. cmeAnalysis je GPL-3.0, takže odvozený port musí být také.
+GPL-3.0-or-later. cmeAnalysis je GPL-3.0, odvozený port proto také.
