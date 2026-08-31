@@ -172,14 +172,26 @@ PROFILE_BANDS = [(6, 9), (10, 19), (20, 39), (40, 10 ** 9)]
 PROFILE_LABELS = ["6–9 snímků", "10–19 snímků", "20–39 snímků", "40+ snímků"]
 
 
-def fig_profiles(measured_dir, out, dt=2.0, n_window=10, si_thr=0.7):
-    """Medianovy prubeh amplitudy cmeAnalysis pred koncem drahy, SI+ vs. SI-."""
+def fig_profiles(measured_dir, out, dt=2.0, n_window=10, si_thr=0.7, norm_csv=None):
+    """Medianovy prubeh amplitudy cmeAnalysis pred koncem drahy, SI+ vs. SI-.
+
+    Amplituda se deli per-cell biexponencialnim fitem prumeru snimku (stejna
+    normalizace jako Matyasuv readout), aby byl median pres filmy fer a osa
+    srovnatelna s jeho panelem B. Bez norm_csv se kresli surove ADU."""
     parts = []
     for f in sorted(glob.glob(os.path.join(measured_dir, "*-lr-trajectories-dynamin.csv"))):
         d = pd.read_csv(f, usecols=["particle", "frame", "cls", "dnm_A"])
         d["film"] = int(re.search(r"_(\d+)-", os.path.basename(f)).group(1))
         parts.append(d)
     df = pd.concat(parts, ignore_index=True).sort_values(["film", "particle", "frame"])
+    ylabel = "amplituda dynaminu [ADU]"
+    if norm_csv and os.path.exists(norm_csv):
+        fit = pd.read_csv(norm_csv, usecols=["film", "frame", "fit"])
+        df = df.merge(fit, on=["film", "frame"], how="left")
+        df["dnm_A"] = df["dnm_A"] / df["fit"]
+        ylabel = "amplituda dynaminu [násobky průměru buňky]"
+    elif norm_csv:
+        print(f"VAROVANI: {norm_csv} nenalezen, profily v surovych ADU")
     g = df.groupby(["film", "particle"])
     df["si_pos"] = g["cls"].transform("max") > si_thr
     df["L"] = g["frame"].transform("size")
@@ -199,7 +211,7 @@ def fig_profiles(measured_dir, out, dt=2.0, n_window=10, si_thr=0.7):
             ax.plot(t, med, "o-", ms=3, color=color, label=lab)
         ax.set_title(lbl, fontsize=10)
         ax.set_xlabel("čas před koncem dráhy [s]")
-    axes[0].set_ylabel("amplituda dynaminu [ADU]")
+    axes[0].set_ylabel(ylabel)
     axes[0].legend(fontsize=8)
     fig.tight_layout()
     fig.savefig(out, dpi=160); plt.close(fig)
@@ -351,7 +363,10 @@ třídy a po délkových pásmech.
 ![průběhy amplitudy](figA4_profiles.png)
 
 *Obrázek 4: Mediánový průběh amplitudy dynaminu (cmeAnalysis) v posledních 20 s před
-koncem dráhy, po délkových pásmech; plná čára je medián, pás mezikvartilové rozpětí.*
+koncem dráhy, po délkových pásmech; plná čára je medián, pás mezikvartilové rozpětí.
+Amplituda je dělená průměrem buňky (stejná normalizace jako box-mean readout), takže
+mediány přes filmy nejsou tažené jasnými filmy a osa je srovnatelná s Matyášovým
+panelem B.*
 
 **Diskuze:**
 
@@ -476,7 +491,10 @@ def build_tex(runs, meta):
     f_prof = tex_fig("figA4_profiles.png",
                      "Mediánový průběh amplitudy dynaminu (cmeAnalysis) v posledních 20 s "
                      "před koncem dráhy, po délkových pásmech; plná čára je medián, pás "
-                     "mezikvartilové rozpětí.", "fig:prof")
+                     "mezikvartilové rozpětí. Amplituda je dělená průměrem buňky (stejná "
+                     "normalizace jako box-mean readout), takže mediány přes filmy nejsou "
+                     "tažené jasnými filmy a osa je srovnatelná s Matyášovým panelem B.",
+                     "fig:prof")
     return TEX_HEAD + f"""
 {{\\LARGE\\bfseries Detektor dynaminové pozitivity\\\\na intenzitě z cmeAnalysis}}\\\\[4pt]
 {{\\small Datum {meta['date']} \\;·\\; CMEpython {meta['git']} \\;·\\;
@@ -634,7 +652,9 @@ def main() -> int:
     ]
     fig_grid(rows_grid, os.path.join(args.out, "figA3_grid.png"))
     try:
-        fig_profiles(args.measured, os.path.join(args.out, "figA4_profiles.png"))
+        fig_profiles(args.measured, os.path.join(args.out, "figA4_profiles.png"),
+                     norm_csv=os.path.join(ROOT, "CME_for_Helios", "data",
+                                           "cme_normalized", "normalization_frame_means.csv"))
     except Exception as exc:  # noqa: BLE001
         print(f"VAROVANI: profily amplitudy se nepodarilo spocitat ({exc})")
     # kopie mozaik pro vizualni srovnani vedle protokolu
