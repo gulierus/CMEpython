@@ -642,7 +642,10 @@ což je výchozí režim cmeAnalysis.
 Pracujeme s {meta['n_films']} filmy „lr registered" (U2OS, 2 s/snímek, 79,1 nm/px)
 a {fmt_n(M['n'])} dodanými drahami. Dráhy jsou předfiltrované již od dodavatele, a to na délku
 přes 5 snímků, polohu uvnitř masky a úplnost v záznamu. Žádný další délkový filtr
-neaplikujeme. Poznamenejme, že ani jedna nálepka není *ground truth* (skutečný stav).
+neaplikujeme. Pozadí filmů pro klasifikaci počítáme s opravenými buněčnými maskami
+(„masks fixed"; původní masky byly poškozené interpolací při uložení, překryv
+s opravenými je podle filmu 0,89 až 0,97). Poznamenejme, že ani jedna nálepka není
+*ground truth* (skutečný stav).
 Měříme tedy shodu dvou nedokonalých měření, ne správnost jednoho z nich.
 
 ### Pokrytí
@@ -972,8 +975,10 @@ délce dráhy. Jde o test ,,s``, tzv. \\emph{{significantSlave}}, což je výcho
 Pracujeme s~{meta['n_films']} filmy ,,lr registered`` (U2OS, 2\\,s/snímek, 79{{,}}1\\,nm/px)
 a {e(fmt_n(M['n']))} dodanými drahami. Dráhy jsou předfiltrované již od dodavatele, a to na délku
 přes 5 snímků, polohu uvnitř masky a úplnost v~záznamu. Žádný další délkový filtr neaplikujeme.
-Poznamenejme, že ani jedna nálepka není \\emph{{ground truth}} (skutečný stav). Měříme tedy shodu
-dvou nedokonalých měření, ne správnost jednoho z~nich.
+Pozadí filmů pro klasifikaci počítáme s~opravenými buněčnými maskami (,,masks fixed``; původní
+masky byly poškozené interpolací při uložení, překryv s~opravenými je podle filmu 0{{,}}89 až
+0{{,}}97). Poznamenejme, že ani jedna nálepka není \\emph{{ground truth}} (skutečný stav).
+Měříme tedy shodu dvou nedokonalých měření, ne správnost jednoho z~nich.
 
 \\subsection*{{Pokrytí}}
 {t_cov}

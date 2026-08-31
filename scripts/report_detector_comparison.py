@@ -15,11 +15,13 @@ import datetime as _dt
 import glob
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
 
 import numpy as np
+import pandas as pd
 
 import matplotlib
 matplotlib.use("Agg")
@@ -125,6 +127,82 @@ def fig_wb_bars(runs, out, tag="none_interior"):
     ax.set_title("Within-band AUC po modelech a readoutech (bez filtru, interior)", fontsize=10.5)
     ax.legend(fontsize=9)
     fig.tight_layout(); fig.savefig(out, dpi=160); plt.close(fig)
+
+
+def _youden_cell(ax, m, wb, cz_fn):
+    """Jedna bunka mrizky: 2x2 matice (radky skutecnost, sloupce predikce,
+    procenta po radcich) + radek statistik pod ni."""
+    tn, fp, fn, tp = m["tn"], m["fp"], m["fn"], m["tp"]
+    mat = np.array([[tn, fp], [fn, tp]], dtype=float)     # radky: abort., prod.
+    rowpct = mat / np.maximum(mat.sum(axis=1, keepdims=True), 1) * 100
+    ax.imshow(rowpct, cmap="Blues", vmin=0, vmax=100)
+    for i in range(2):
+        for j in range(2):
+            ax.text(j, i, f"{fmt_n(mat[i, j])}\n{rowpct[i, j]:.0f} %",
+                    ha="center", va="center", fontsize=7.5,
+                    color="white" if rowpct[i, j] > 55 else "black")
+    ax.set_xticks([0, 1], ["ab.", "pr."], fontsize=7)
+    ax.set_yticks([0, 1], ["abort.", "prod."], fontsize=7)
+    gap = m["auc"] - wb
+    ax.set_xlabel(f"AUC {cz_fn(m['auc'])} · práh {cz_fn(m['threshold'])}\n"
+                  f"sens {cz_fn(m['sensitivity'], 2)} · spec {cz_fn(m['specificity'], 2)}\n"
+                  f"wb AUC {cz_fn(wb)} · gap {'+' if gap >= 0 else ''}{cz_fn(gap, 2)}",
+                  fontsize=7.5)
+
+
+def fig_grid(rows_grid, out):
+    """Mrizka ve 'druhem formatu': radky = readout/korpus, sloupce = modely."""
+    nr, nc = len(rows_grid), len(MODELS)
+    fig, axes = plt.subplots(nr, nc, figsize=(2.9 * nc, 3.3 * nr))
+    for i, (label, cfg) in enumerate(rows_grid):
+        for j, (model, short) in enumerate(zip(MODELS, SHORT)):
+            ax = axes[i, j]
+            _youden_cell(ax, cfg["pooled"]["models"][model], wb_auc(cfg, model), cz)
+            if i == 0:
+                ax.set_title(short, fontsize=10)
+            if j == 0:
+                ax.text(-0.62, 0.5, f"{label}\nn = {fmt_n(cfg['n_tracks'])}",
+                        transform=ax.transAxes, ha="center", va="center",
+                        rotation=90, fontsize=9)
+    fig.tight_layout()
+    fig.savefig(out, dpi=150, bbox_inches="tight"); plt.close(fig)
+
+
+PROFILE_BANDS = [(6, 9), (10, 19), (20, 39), (40, 10 ** 9)]
+PROFILE_LABELS = ["6–9 snímků", "10–19 snímků", "20–39 snímků", "40+ snímků"]
+
+
+def fig_profiles(measured_dir, out, dt=2.0, n_window=10, si_thr=0.7):
+    """Medianovy prubeh amplitudy cmeAnalysis pred koncem drahy, SI+ vs. SI-."""
+    parts = []
+    for f in sorted(glob.glob(os.path.join(measured_dir, "*-lr-trajectories-dynamin.csv"))):
+        d = pd.read_csv(f, usecols=["particle", "frame", "cls", "dnm_A"])
+        d["film"] = int(re.search(r"_(\d+)-", os.path.basename(f)).group(1))
+        parts.append(d)
+    df = pd.concat(parts, ignore_index=True).sort_values(["film", "particle", "frame"])
+    g = df.groupby(["film", "particle"])
+    df["si_pos"] = g["cls"].transform("max") > si_thr
+    df["L"] = g["frame"].transform("size")
+    df["off"] = df["frame"] - g["frame"].transform("max")      # 0 = posledni snimek
+    win = df[df["off"] >= -(n_window - 1)]
+    fig, axes = plt.subplots(1, 4, figsize=(15, 3.8), sharex=True)
+    for ax, lbl, (lo, hi) in zip(axes, PROFILE_LABELS, PROFILE_BANDS):
+        b = win[(win.L >= lo) & (win.L <= hi)]
+        for si_val, color, lab in [(False, ORANGE, "SI− (abortivní)"),
+                                   (True, BLUE, "SI+ (produktivní)")]:
+            s = b[b.si_pos == si_val].groupby("off")["dnm_A"]
+            t = np.array(sorted(s.groups)) * dt
+            med = s.median().reindex(sorted(s.groups)).to_numpy()
+            q25 = s.quantile(0.25).reindex(sorted(s.groups)).to_numpy()
+            q75 = s.quantile(0.75).reindex(sorted(s.groups)).to_numpy()
+            ax.fill_between(t, q25, q75, color=color, alpha=0.18)
+            ax.plot(t, med, "o-", ms=3, color=color, label=lab)
+        ax.set_title(lbl, fontsize=10)
+        ax.set_xlabel("čas před koncem dráhy [s]")
+    axes[0].set_ylabel("amplituda dynaminu [ADU]")
+    axes[0].legend(fontsize=8)
+    fig.tight_layout()
+    fig.savefig(out, dpi=160); plt.close(fig)
 
 
 def fig_pooled_vs_wb(runs, out, tag="none_interior"):
@@ -239,7 +317,52 @@ useknuté konce téměř neobsahují.*
 Závěr z části 2 platí ve všech konfiguracích. Žádná kombinace filtrů nezvedne *within-band*
 AUC nad úroveň, kterou známe z *box-mean* readoutu.
 
-## 4. Čeho se model drží: koeficienty logistické regrese
+## 4. Confusion matice s Youdenovým prahem
+
+Obrázek 3 čteme takto. Řádky mřížky jsou readouty a korpusy, sloupce modely; poslední
+sloupec je kontrola s permutovanými nálepkami. V každé buňce je matice 2×2, a to řádky
+skutečná SI třída (abortivní, produktivní) a sloupce predikce modelu; procenta jsou podíl
+v řádku. Pod maticí uvádíme AUC, Youdenův práh, sensitivitu, specificitu, within-band AUC
+a gap. Řádky s *box-mean* jsou Matyášův původní běh; jeho korpus „end-observed" navíc
+obsahuje dráhy s useknutým začátkem, které v našich datech nejsou.
+
+![mřížka confusion matic](figA3_grid.png)
+
+*Obrázek 3: Confusion matice s prahem podle Youdenova J pro čtyři kombinace readoutu
+a korpusu a šest modelů. Práh je volený na agregovaných OOF predikcích, tedy in-sample;
+sensitivita a specificita jsou proto mírně optimistické (permutační null má balanced
+accuracy přibližně 0,50 až 0,54). Reportujeme všechny konfigurace; primární metrikou pro
+srovnání readoutů je within-band AUC, protože poolovaná čísla obsahují +0,17 až +0,20
+příspěvku délky trajektorie.*
+
+**Diskuze:**
+
+Z obrázku 3 plyne, že žádný model se na amplitudě cmeAnalysis podstatně neliší od svého
+protějšku na *box-mean*; rozdíly ve *within-band* AUC jsou v setinách. Mřížku čteme jako
+diagnostiku readoutů. Konfiguraci podle shody se SI nevybíráme; tím by se referenční
+standard ladil podle metody, kterou má ověřovat, a ortogonalita validace by se ztratila.
+
+## 5. Průběh amplitudy před koncem dráhy
+
+Nezávisle na jakémkoli klasifikátoru se lze podívat přímo na data. Obrázek 4 ukazuje
+mediánový průběh amplitudy cmeAnalysis v posledních 20 s života dráhy, zvlášť pro obě SI
+třídy a po délkových pásmech.
+
+![průběhy amplitudy](figA4_profiles.png)
+
+*Obrázek 4: Mediánový průběh amplitudy dynaminu (cmeAnalysis) v posledních 20 s před
+koncem dráhy, po délkových pásmech; plná čára je medián, pás mezikvartilové rozpětí.*
+
+**Diskuze:**
+
+Z obrázku 4 plyne dvojí. Za prvé, produktivní dráhy leží nad abortivními po celé okno,
+a to ve všech pásmech kromě nejkratšího; rozdíl s délkou pásma roste. To je stejný trvalý
+posun, jaký ukazují koeficienty v části 6. Za druhé, tvar průběhu je u obou tříd téměř
+shodný: amplituda stoupá k vrcholu přibližně 8 až 10 s před koncem dráhy a k samotnému
+konci klesá. Průběh na konci života tedy nenese podpis specifický pro produktivní dráhy;
+rozdíl tříd je v úrovni, ne ve tvaru.
+
+## 6. Čeho se model drží: koeficienty logistické regrese
 
 Z dřívějšího běhu na týchž korpusech máme standardizované koeficienty logistické regrese po
 délkových pásmech (soubory `dynamin_v2_logreg_coefs*` v obou runech). Nejsilnější a
@@ -254,7 +377,7 @@ Dá se říct, že detektor rozpoznává produktivní dráhy podle trvale vyšš
 terminální vzestup mají obě třídy. Surová a normalizovaná varianta dávají stejné koeficienty,
 což opět potvrzuje, že volba normalizace nehraje roli.
 
-## 5. Shrnutí
+## 7. Shrnutí
 
 1. Experiment jsme zopakovali beze změny Matyášova kódu, pouze s naší intenzitou;
    obě varianty korpusu doběhly čistě a kontrola s permutovanými nálepkami sedí na 0,5.
@@ -263,10 +386,14 @@ což opět potvrzuje, že volba normalizace nehraje roli.
    rozptylem (tabulka 2). Kvalita měření tedy nebyla úzkým hrdlem.
 4. Délkový efekt zůstává beze změny u všech readoutů (ρ ≈ 0,87; gap ≈ 0,15 až 0,18).
    Strop výsledků drží délkový confounding a vlastnosti nálepek, ne měření.
-5. Výsledek je konzistentní s úlohou B, kde na spojité amplitudě vyšla within-band AUC
+5. Mřížka s Youdenovými prahy (obrázek 3) slouží jako diagnostika readoutů; konfiguraci
+   podle shody se SI nevybíráme. Mediánové průběhy (obrázek 4) mají v obou SI třídách
+   téměř shodný tvar (vrchol několik sekund před koncem); produktivní dráhy leží výš
+   po celé okno.
+6. Výsledek je konzistentní s úlohou B, kde na spojité amplitudě vyšla within-band AUC
    0,520 pro cmeAnalysis a 0,536 pro *box-mean* na stejných drahách.
 
-## 6. Reprodukce
+## 8. Reprodukce
 
 ```bash
 python3 scripts/build_cme_corpus.py --variant both        # korpusy (CME_for_Helios/data)
@@ -338,6 +465,18 @@ def build_tex(runs, meta):
     f2 = tex_fig("figA2_pooled_wb.png", "Pooled proti within-band AUC; každý bod je jedna "
                  "dvojice model a readout. Všechny body leží hluboko pod diagonálou, rozdíl "
                  "je délkový efekt.", "fig:pw", width="0.72\\linewidth")
+    f_grid = tex_fig("figA3_grid.png",
+                     "Confusion matice s prahem podle Youdenova J pro čtyři kombinace readoutu "
+                     "a korpusu a šest modelů. Práh je volený na agregovaných OOF predikcích, "
+                     "tedy in-sample; sensitivita a specificita jsou proto mírně optimistické "
+                     "(permutační null má balanced accuracy přibližně 0,50 až 0,54). "
+                     "Reportujeme všechny konfigurace; primární metrikou pro srovnání readoutů "
+                     "je within-band AUC, protože poolovaná čísla obsahují +0,17 až +0,20 "
+                     "příspěvku délky trajektorie.", "fig:grid")
+    f_prof = tex_fig("figA4_profiles.png",
+                     "Mediánový průběh amplitudy dynaminu (cmeAnalysis) v posledních 20 s "
+                     "před koncem dráhy, po délkových pásmech; plná čára je medián, pás "
+                     "mezikvartilové rozpětí.", "fig:prof")
     return TEX_HEAD + f"""
 {{\\LARGE\\bfseries Detektor dynaminové pozitivity\\\\na intenzitě z cmeAnalysis}}\\\\[4pt]
 {{\\small Datum {meta['date']} \\;·\\; CMEpython {meta['git']} \\;·\\;
@@ -394,7 +533,38 @@ hlavní odpověď tohoto experimentu.
 Závěr z~části~2 platí ve všech konfiguracích. Žádná kombinace filtrů nezvedne
 \\emph{{within-band}} AUC nad úroveň, kterou známe z~\\emph{{box-mean}} readoutu.
 
-\\section*{{4\\; Čeho se model drží: koeficienty logistické regrese}}
+\\section*{{4\\; Confusion matice s Youdenovým prahem}}
+Obrázek~\\ref{{fig:grid}} čteme takto. Řádky mřížky jsou readouty a korpusy, sloupce modely;
+poslední sloupec je kontrola s~permutovanými nálepkami. V~každé buňce je matice 2$\\times$2,
+a to řádky skutečná SI třída (abortivní, produktivní) a sloupce predikce modelu; procenta
+jsou podíl v~řádku. Pod maticí uvádíme AUC, Youdenův práh, sensitivitu, specificitu,
+\\emph{{within-band}} AUC a gap. Řádky s~\\emph{{box-mean}} jsou Matyášův původní běh; jeho
+korpus ,,end-observed`` navíc obsahuje dráhy s~useknutým začátkem, které v~našich datech
+nejsou.
+{f_grid}
+\\textbf{{Diskuze:}}
+
+Z~obrázku~\\ref{{fig:grid}} plyne, že žádný model se na amplitudě cmeAnalysis podstatně
+neliší od svého protějšku na \\emph{{box-mean}}; rozdíly ve \\emph{{within-band}} AUC jsou
+v~setinách. Mřížku čteme jako diagnostiku readoutů. Konfiguraci podle shody se SI
+nevybíráme; tím by se referenční standard ladil podle metody, kterou má ověřovat,
+a ortogonalita validace by se ztratila.
+
+\\section*{{5\\; Průběh amplitudy před koncem dráhy}}
+Nezávisle na jakémkoli klasifikátoru se lze podívat přímo na data.
+Obrázek~\\ref{{fig:prof}} ukazuje mediánový průběh amplitudy cmeAnalysis v~posledních
+20\\,s života dráhy, zvlášť pro obě SI třídy a po délkových pásmech.
+{f_prof}
+\\textbf{{Diskuze:}}
+
+Z~obrázku~\\ref{{fig:prof}} plyne dvojí. Za prvé, produktivní dráhy leží nad abortivními po
+celé okno, a to ve všech pásmech kromě nejkratšího; rozdíl s~délkou pásma roste. To je
+stejný trvalý posun, jaký ukazují koeficienty v~části~6. Za druhé, tvar průběhu je u~obou
+tříd téměř shodný: amplituda stoupá k~vrcholu přibližně 8 až 10\\,s před koncem dráhy
+a k~samotnému konci klesá. Průběh na konci života tedy nenese podpis specifický pro
+produktivní dráhy; rozdíl tříd je v~úrovni, ne ve tvaru.
+
+\\section*{{6\\; Čeho se model drží: koeficienty logistické regrese}}
 Z~dřívějšího běhu na týchž korpusech máme standardizované koeficienty logistické regrese po
 délkových pásmech. Nejsilnější a bootstrapově stabilní koeficient v~delších pásmech je
 průměrná amplituda v~rané a střední fázi života dráhy, kladný. Váhy terminálního okna, tedy
@@ -407,7 +577,7 @@ Dá se říct, že detektor rozpoznává produktivní dráhy podle trvale vyšš
 terminální vzestup mají obě třídy. Surová a normalizovaná varianta dávají stejné
 koeficienty, což opět potvrzuje, že volba normalizace nehraje roli.
 
-\\section*{{5\\; Shrnutí}}
+\\section*{{7\\; Shrnutí}}
 \\begin{{enumerate}}
 \\item Experiment jsme zopakovali beze změny Matyášova kódu, pouze s~naší intenzitou; obě
 varianty korpusu doběhly čistě a kontrola s~permutovanými nálepkami sedí na 0{{,}}5.
@@ -417,11 +587,15 @@ mezifilmovým rozptylem (tabulka~\\ref{{tab:main}}). Kvalita měření tedy neby
 \\item Délkový efekt zůstává beze změny u~všech readoutů ($\\rho \\approx 0{{,}}87$; rozdíl
 pooled a within-band $\\approx$ 0{{,}}15 až 0{{,}}18). Strop výsledků drží délkový
 confounding a vlastnosti nálepek, ne měření.
+\\item Mřížka s~Youdenovými prahy (obrázek~\\ref{{fig:grid}}) slouží jako diagnostika
+readoutů; konfiguraci podle shody se SI nevybíráme. Mediánové průběhy
+(obrázek~\\ref{{fig:prof}}) mají v~obou SI třídách téměř shodný tvar (vrchol několik sekund
+před koncem); produktivní dráhy leží výš po celé okno.
 \\item Výsledek je konzistentní s~úlohou B, kde na spojité amplitudě vyšla within-band AUC
 0{{,}}520 pro cmeAnalysis a 0{{,}}536 pro \\emph{{box-mean}} na stejných drahách.
 \\end{{enumerate}}
 
-\\section*{{6\\; Reprodukce}}
+\\section*{{8\\; Reprodukce}}
 \\texttt{{build\\_cme\\_corpus.py --variant both}} (korpusy); na HELIOSu
 \\texttt{{./setup\\_env.sh}} a \\texttt{{./submit\\_all.sh}} (joby 238568 a 238569);
 \\texttt{{report\\_detector\\_comparison.py}} (tento protokol).
@@ -433,6 +607,7 @@ confounding a vlastnosti nálepek, ne měření.
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--runs", default=os.path.join(ROOT, "CME_for_Helios", "runs"))
+    ap.add_argument("--measured", default=os.path.join(ROOT, "lr registered", "measured"))
     ap.add_argument("--boxmean-json", default=os.path.join(
         ROOT, "external", "Shape2Fate_Fake2Emulate", "dynamin_v2_confusion_sweep.json"))
     ap.add_argument("--raw-json", default=None)
@@ -451,6 +626,17 @@ def main() -> int:
 
     fig_wb_bars(runs, os.path.join(args.out, "figA1_wb_bars.png"))
     fig_pooled_vs_wb(runs, os.path.join(args.out, "figA2_pooled_wb.png"))
+    rows_grid = [
+        ("cmeAnalysis amplituda, interior", runs["cme surová"]["none_interior"]),
+        ("cmeAnalysis amplituda, end-observed", runs["cme surová"]["none_endobs"]),
+        ("box-mean 5×5, interior", runs["box-mean"]["none_interior"]),
+        ("box-mean 5×5, end-observed", runs["box-mean"]["none_endobs"]),
+    ]
+    fig_grid(rows_grid, os.path.join(args.out, "figA3_grid.png"))
+    try:
+        fig_profiles(args.measured, os.path.join(args.out, "figA4_profiles.png"))
+    except Exception as exc:  # noqa: BLE001
+        print(f"VAROVANI: profily amplitudy se nepodarilo spocitat ({exc})")
     # kopie mozaik pro vizualni srovnani vedle protokolu
     pairs = [
         (os.path.join(ROOT, "external", "Shape2Fate_Fake2Emulate", "generator",
