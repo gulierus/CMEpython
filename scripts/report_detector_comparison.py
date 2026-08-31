@@ -197,22 +197,30 @@ def fig_profiles(measured_dir, out, dt=2.0, n_window=10, si_thr=0.7, norm_csv=No
     df["L"] = g["frame"].transform("size")
     df["off"] = df["frame"] - g["frame"].transform("max")      # 0 = posledni snimek
     win = df[df["off"] >= -(n_window - 1)]
-    fig, axes = plt.subplots(1, 4, figsize=(15, 3.8), sharex=True)
-    for ax, lbl, (lo, hi) in zip(axes, PROFILE_LABELS, PROFILE_BANDS):
+    fig, axes = plt.subplots(2, 4, figsize=(15, 7.2), sharex=True)
+    for col, (lbl, (lo, hi)) in enumerate(zip(PROFILE_LABELS, PROFILE_BANDS)):
         b = win[(win.L >= lo) & (win.L <= hi)]
         for si_val, color, lab in [(False, ORANGE, "SI− (abortivní)"),
                                    (True, BLUE, "SI+ (produktivní)")]:
             s = b[b.si_pos == si_val].groupby("off")["dnm_A"]
             t = np.array(sorted(s.groups)) * dt
-            med = s.median().reindex(sorted(s.groups)).to_numpy()
-            q25 = s.quantile(0.25).reindex(sorted(s.groups)).to_numpy()
-            q75 = s.quantile(0.75).reindex(sorted(s.groups)).to_numpy()
-            ax.fill_between(t, q25, q75, color=color, alpha=0.18)
-            ax.plot(t, med, "o-", ms=3, color=color, label=lab)
-        ax.set_title(lbl, fontsize=10)
-        ax.set_xlabel("čas před koncem dráhy [s]")
-    axes[0].set_ylabel(ylabel)
-    axes[0].legend(fontsize=8)
+            idx = sorted(s.groups)
+            # horni rada: median + mezikvartilovy pas
+            med = s.median().reindex(idx).to_numpy()
+            q25 = s.quantile(0.25).reindex(idx).to_numpy()
+            q75 = s.quantile(0.75).reindex(idx).to_numpy()
+            axes[0, col].fill_between(t, q25, q75, color=color, alpha=0.18)
+            axes[0, col].plot(t, med, "o-", ms=3, color=color, label=lab)
+            # dolni rada: prumer +- stredni chyba prumeru
+            mean = s.mean().reindex(idx).to_numpy()
+            sem = s.sem().reindex(idx).to_numpy()
+            axes[1, col].fill_between(t, mean - sem, mean + sem, color=color, alpha=0.25)
+            axes[1, col].plot(t, mean, "o-", ms=3, color=color, label=lab)
+        axes[0, col].set_title(lbl, fontsize=10)
+        axes[1, col].set_xlabel("čas před koncem dráhy [s]")
+    axes[0, 0].set_ylabel(ylabel.replace("amplituda dynaminu", "medián amplitudy"))
+    axes[1, 0].set_ylabel(ylabel.replace("amplituda dynaminu", "průměr amplitudy"))
+    axes[0, 0].legend(fontsize=8)
     fig.tight_layout()
     fig.savefig(out, dpi=160); plt.close(fig)
 
@@ -361,12 +369,13 @@ třídy a po délkových pásmech.
 
 ![průběhy amplitudy](figA4_profiles.png)
 
-*Obrázek 4: Mediánový průběh amplitudy dynaminu (cmeAnalysis) v posledních 20 s před
-koncem dráhy, po délkových pásmech; plná čára je medián, poloprůhledný pás mezikvartilové
-rozpětí dané třídy (modrý SI+, oranžový SI−); šedá plocha je překryv obou pásem. Pásy
-ukazují rozpětí populace drah, ne nejistotu mediánu. Amplituda je dělená průměrem buňky
-(stejná normalizace jako box-mean readout), takže mediány přes filmy nejsou tažené jasnými
-filmy a osa je srovnatelná s panelem B původní analýzy.*
+*Obrázek 4: Průběh amplitudy dynaminu (cmeAnalysis) v posledních 20 s před koncem dráhy,
+po délkových pásmech. Horní řada: medián, poloprůhledný pás je mezikvartilové rozpětí dané
+třídy (modrý SI+, oranžový SI−) a šedá plocha překryv obou pásem; pásy ukazují rozpětí
+populace drah, ne nejistotu mediánu. Dolní řada: průměr, pás je ± střední chyba průměru.
+Amplituda je dělená průměrem buňky (stejná normalizace jako box-mean readout), takže
+hodnoty přes filmy nejsou tažené jasnými filmy a osa je srovnatelná s panelem B původní
+analýzy.*
 
 **Diskuze:**
 
@@ -380,7 +389,11 @@ téměř úplně (šedá plocha); prostřední polovina produktivních a prostř
 abortivních drah leží prakticky ve stejném rozsahu amplitud. Rozdíl tříd se drží hlavně
 v horním chvostu, kde modrý pás přesahuje oranžový. Podle amplitudy jedné dráhy v jednom
 okamžiku se tedy třída poznat nedá; to je vizuální podoba within-band AUC kolem 0,52
-z části 2, přestože posun mediánů je na úrovni populace prokazatelný.
+z části 2, přestože posun mediánů je na úrovni populace prokazatelný. Průměrné průběhy
+(dolní řada) oddělují třídy zřetelněji než mediány, a to i v nejkratším pásmu: rozdíl tříd
+sedí v horním chvostu rozdělení a průměr, na rozdíl od mediánu, chvost započítává. Úzké
+pásy ± SEM ukazují, že posun průměrů je odhadnutý přesně; jde ovšem o rozdíl průměrů
+populací, ne o oddělitelnost jednotlivých drah, kterou popisuje horní řada.
 
 ## 6. Čeho se model drží: koeficienty logistické regrese
 
@@ -484,14 +497,14 @@ def build_tex(runs, meta):
                      "je within-band AUC, protože poolovaná čísla obsahují +0,17 až +0,20 "
                      "příspěvku délky trajektorie.", "fig:grid")
     f_prof = tex_fig("figA4_profiles.png",
-                     "Mediánový průběh amplitudy dynaminu (cmeAnalysis) v posledních 20 s "
-                     "před koncem dráhy, po délkových pásmech; plná čára je medián, "
-                     "poloprůhledný pás mezikvartilové rozpětí dané třídy (modrý SI+, "
-                     "oranžový SI−); šedá plocha je překryv obou pásem. Pásy ukazují rozpětí "
-                     "populace drah, ne nejistotu mediánu. Amplituda je dělená průměrem "
-                     "buňky (stejná normalizace jako box-mean readout), takže mediány přes "
-                     "filmy nejsou tažené jasnými filmy a osa je srovnatelná s panelem B "
-                     "původní analýzy.", "fig:prof")
+                     "Průběh amplitudy dynaminu (cmeAnalysis) v posledních 20 s před koncem "
+                     "dráhy, po délkových pásmech. Horní řada: medián, poloprůhledný pás je "
+                     "mezikvartilové rozpětí dané třídy (modrý SI+, oranžový SI−) a šedá "
+                     "plocha překryv obou pásem; pásy ukazují rozpětí populace drah, ne "
+                     "nejistotu mediánu. Dolní řada: průměr, pás je ± střední chyba průměru. "
+                     "Amplituda je dělená průměrem buňky (stejná normalizace jako box-mean "
+                     "readout), takže hodnoty přes filmy nejsou tažené jasnými filmy a osa "
+                     "je srovnatelná s panelem B původní analýzy.", "fig:prof")
     return TEX_HEAD + f"""
 {{\\LARGE\\bfseries Detektor dynaminové pozitivity\\\\na intenzitě z cmeAnalysis}}\\\\[4pt]
 {{\\small Datum {meta['date']} \\;·\\; CMEpython {meta['git']} \\;·\\;
@@ -583,6 +596,10 @@ polovina abortivních drah leží prakticky ve stejném rozsahu amplitud. Rozdí
 hlavně v~horním chvostu, kde modrý pás přesahuje oranžový. Podle amplitudy jedné dráhy
 v~jednom okamžiku se tedy třída poznat nedá; to je vizuální podoba \\emph{{within-band}} AUC
 kolem 0{{,}}52 z~části~2, přestože posun mediánů je na úrovni populace prokazatelný.
+Průměrné průběhy (dolní řada) oddělují třídy zřetelněji než mediány, a to i v~nejkratším
+pásmu: rozdíl tříd sedí v~horním chvostu rozdělení a průměr, na rozdíl od mediánu, chvost
+započítává. Úzké pásy $\\pm$\\,SEM ukazují, že posun průměrů je odhadnutý přesně; jde ovšem
+o rozdíl průměrů populací, ne o oddělitelnost jednotlivých drah, kterou popisuje horní řada.
 
 \\section*{{6\\; Čeho se model drží: koeficienty logistické regrese}}
 Z~dřívějšího běhu na týchž korpusech máme standardizované koeficienty logistické regrese po
