@@ -258,24 +258,24 @@ Datum {meta['date']} · CMEpython {meta['git']} · vygenerováno `scripts/report
 
 ## 1. Co jsme udělali a proč
 
-Zopakovali jsme Matyášův experiment s trénováním detektoru dynaminové pozitivity. Jedinou
+Zopakovali jsme experiment předchozí analýzy s trénováním detektoru dynaminové pozitivity. Jedinou
 změnou je vstupní dynaminová intenzita, kterou jsme nahradili amplitudou z cmeAnalysis.
 Ptáme se, zda kvalita měření byla úzkým hrdlem předchozích výsledků.
 
 Postupovali jsme takto. Nejprve jsme z našich měření sestavili dva korpusy ve formátu, který
-Matyášův kód čte beze změny. V prvním je amplituda v surových jednotkách kamery. Ve druhém je
+převzatý trénovací kód čte beze změny. V prvním je amplituda v surových jednotkách kamery. Ve druhém je
 navíc vydělena biexponenciálním fitem průměrů snímků buňky, tedy stejnou normalizací, jakou
-používá jeho *box-mean* readout. Konvence `intenzita = 1 + amplituda` zajišťuje, že jeho
+používá referenční *box-mean* readout. Konvence `intenzita = 1 + amplituda` zajišťuje, že jeho
 `excess` je přímo amplituda cmeAnalysis. Následně jsme na výpočetním clusteru HELIOS spustili
-jeho trénovací skript nad oběma korpusy, a to bez jakékoli úpravy kódu. Skript trénuje šest
+převzatý trénovací skript nad oběma korpusy, a to bez jakékoli úpravy kódu. Skript trénuje šest
 modelů v osmi konfiguracích filtrů, s pětinásobnou křížovou validací grupovanou po filmech
-a s prahem podle Youdenova indexu. Referencí je jeho původní běh s *box-mean* readoutem.
+a s prahem podle Youdenova indexu. Referencí je původní běh s *box-mean* readoutem.
 
 Poznamenejme dvě omezení srovnání. Za prvé, naše korpusy obsahují jen dodané dráhy, tedy
 interior podmnožinu; jeho korpus obsahuje i dráhy s useknutým začátkem. Primární srovnání
 proto vedeme na konfiguraci „bez filtru, interior", kde jsou populace téměř shodné
 (tabulka 1). Za druhé, na clusteru běžely mírně jiné verze knihoven (pandas 2.2.3
-a xgboost 2.1.4 místo 2.3.3 a 3.1.2); podle Matyášovy dokumentace mění verze skóre
+a xgboost 2.1.4 místo 2.3.3 a 3.1.2); podle dokumentace původní analýzy mění verze skóre
 fitovaných modelů jen v posledních desetinných místech.
 
 {t_corp}
@@ -335,7 +335,7 @@ Obrázek 3 čteme takto. Řádky mřížky jsou readouty a korpusy, sloupce mode
 sloupec je kontrola s permutovanými nálepkami. V každé buňce je matice 2×2, a to řádky
 skutečná SI třída (abortivní, produktivní) a sloupce predikce modelu; procenta jsou podíl
 v řádku. Pod maticí uvádíme AUC, Youdenův práh, sensitivitu, specificitu, within-band AUC
-a gap. Řádky s *box-mean* jsou Matyášův původní běh; jeho korpus „end-observed" navíc
+a gap. Řádky s *box-mean* jsou původní referenční běh; jeho korpus „end-observed" navíc
 obsahuje dráhy s useknutým začátkem, které v našich datech nejsou.
 
 ![mřížka confusion matic](figA3_grid.png)
@@ -365,8 +365,7 @@ třídy a po délkových pásmech.
 *Obrázek 4: Mediánový průběh amplitudy dynaminu (cmeAnalysis) v posledních 20 s před
 koncem dráhy, po délkových pásmech; plná čára je medián, pás mezikvartilové rozpětí.
 Amplituda je dělená průměrem buňky (stejná normalizace jako box-mean readout), takže
-mediány přes filmy nejsou tažené jasnými filmy a osa je srovnatelná s Matyášovým
-panelem B.*
+mediány přes filmy nejsou tažené jasnými filmy a osa je srovnatelná s panelem B původní analýzy.*
 
 **Diskuze:**
 
@@ -394,7 +393,7 @@ což opět potvrzuje, že volba normalizace nehraje roli.
 
 ## 7. Shrnutí
 
-1. Experiment jsme zopakovali beze změny Matyášova kódu, pouze s naší intenzitou;
+1. Experiment jsme zopakovali beze změny převzatého kódu, pouze s naší intenzitou;
    obě varianty korpusu doběhly čistě a kontrola s permutovanými nálepkami sedí na 0,5.
 2. Surová a normalizovaná amplituda dávají stejné výsledky; volba normalizace nehraje roli.
 3. Amplituda cmeAnalysis nepřekonala *box-mean*; rozdíly jsou v setinách a pod mezifilmovým
@@ -483,7 +482,7 @@ def build_tex(runs, meta):
                      "před koncem dráhy, po délkových pásmech; plná čára je medián, pás "
                      "mezikvartilové rozpětí. Amplituda je dělená průměrem buňky (stejná "
                      "normalizace jako box-mean readout), takže mediány přes filmy nejsou "
-                     "tažené jasnými filmy a osa je srovnatelná s Matyášovým panelem B.",
+                     "tažené jasnými filmy a osa je srovnatelná s panelem B původní analýzy.",
                      "fig:prof")
     return TEX_HEAD + f"""
 {{\\LARGE\\bfseries Detektor dynaminové pozitivity\\\\na intenzitě z cmeAnalysis}}\\\\[4pt]
@@ -491,25 +490,25 @@ def build_tex(runs, meta):
 \\texttt{{scripts/report\\_detector\\_comparison.py}}}}
 
 \\section*{{1\\; Co jsme udělali a proč}}
-Zopakovali jsme Matyášův experiment s~trénováním detektoru dynaminové pozitivity. Jedinou
+Zopakovali jsme experiment předchozí analýzy s~trénováním detektoru dynaminové pozitivity. Jedinou
 změnou je vstupní dynaminová intenzita, kterou jsme nahradili amplitudou z~cmeAnalysis.
 Ptáme se, zda kvalita měření byla úzkým hrdlem předchozích výsledků.
 \\par
 Postupovali jsme takto. Nejprve jsme z~našich měření sestavili dva korpusy ve formátu, který
-Matyášův kód čte beze změny. V~prvním je amplituda v~surových jednotkách kamery. Ve druhém je
+převzatý trénovací kód čte beze změny. V~prvním je amplituda v~surových jednotkách kamery. Ve druhém je
 navíc vydělena biexponenciálním fitem průměrů snímků buňky, tedy stejnou normalizací, jakou
 používá jeho \\emph{{box-mean}} readout. Konvence \\texttt{{intenzita = 1 + amplituda}}
 zajišťuje, že jeho \\texttt{{excess}} je přímo amplituda cmeAnalysis. Následně jsme na
-výpočetním clusteru HELIOS spustili jeho trénovací skript nad oběma korpusy, a to bez
+výpočetním clusteru HELIOS spustili převzatý trénovací skript nad oběma korpusy, a to bez
 jakékoli úpravy kódu. Skript trénuje šest modelů v~osmi konfiguracích filtrů,
 s~pětinásobnou křížovou validací grupovanou po filmech a s~prahem podle Youdenova indexu.
-Referencí je jeho původní běh s~\\emph{{box-mean}} readoutem.
+Referencí je původní běh s~\\emph{{box-mean}} readoutem.
 \\par
 Poznamenejme dvě omezení srovnání. Za prvé, naše korpusy obsahují jen dodané dráhy, tedy
 interior podmnožinu; jeho korpus obsahuje i dráhy s~useknutým začátkem. Primární srovnání
 proto vedeme na konfiguraci ,,bez filtru, interior``, kde jsou populace téměř shodné
 (tabulka~\\ref{{tab:corp}}). Za druhé, na clusteru běžely mírně jiné verze knihoven
-(pandas 2.2.3 a xgboost 2.1.4 místo 2.3.3 a 3.1.2); podle Matyášovy dokumentace mění verze
+(pandas 2.2.3 a xgboost 2.1.4 místo 2.3.3 a 3.1.2); podle dokumentace původní analýzy mění verze
 skóre fitovaných modelů jen v~posledních desetinných místech.
 {t_corp}
 
@@ -528,7 +527,7 @@ surová a normalizovaná amplituda dávají prakticky stejné výsledky. Volba n
 nehraje roli, což odpovídá tomu, že amplituda cmeAnalysis má lokální pozadí odečtené již
 z~konstrukce. Za druhé, amplituda cmeAnalysis dává mírně nižší, avšak řádově stejné hodnoty
 jako \\emph{{box-mean}}. Rozdíly ve \\emph{{within-band}} AUC jsou v~setinách a leží pod
-mezifilmovým rozptylem, který Matyášova dokumentace uvádí kolem 0{{,}}05. Za třetí, pořadí
+mezifilmovým rozptylem, který dokumentace původní analýzy uvádí kolem 0{{,}}05. Za třetí, pořadí
 modelů i velikost délkového efektu zůstávají stejné. Korelace skóre s~délkou je u~všech
 readoutů shodná (tabulka~\\ref{{tab:corp}}) a rozdíl mezi pooled a within-band hodnotou se
 drží kolem 0{{,}}15 až 0{{,}}18. Usuzujeme, že kvalita měření úzkým hrdlem nebyla, a to je
@@ -546,7 +545,7 @@ Obrázek~\\ref{{fig:grid}} čteme takto. Řádky mřížky jsou readouty a korpu
 poslední sloupec je kontrola s~permutovanými nálepkami. V~každé buňce je matice 2$\\times$2,
 a to řádky skutečná SI třída (abortivní, produktivní) a sloupce predikce modelu; procenta
 jsou podíl v~řádku. Pod maticí uvádíme AUC, Youdenův práh, sensitivitu, specificitu,
-\\emph{{within-band}} AUC a gap. Řádky s~\\emph{{box-mean}} jsou Matyášův původní běh; jeho
+\\emph{{within-band}} AUC a gap. Řádky s~\\emph{{box-mean}} jsou původní referenční běh; jeho
 korpus ,,end-observed`` navíc obsahuje dráhy s~useknutým začátkem, které v~našich datech
 nejsou.
 {f_grid}
@@ -587,7 +586,7 @@ koeficienty, což opět potvrzuje, že volba normalizace nehraje roli.
 
 \\section*{{7\\; Shrnutí}}
 \\begin{{enumerate}}
-\\item Experiment jsme zopakovali beze změny Matyášova kódu, pouze s~naší intenzitou; obě
+\\item Experiment jsme zopakovali beze změny převzatého kódu, pouze s~naší intenzitou; obě
 varianty korpusu doběhly čistě a kontrola s~permutovanými nálepkami sedí na 0{{,}}5.
 \\item Surová a normalizovaná amplituda dávají stejné výsledky; volba normalizace nehraje roli.
 \\item Amplituda cmeAnalysis nepřekonala \\emph{{box-mean}}; rozdíly jsou v~setinách a pod
