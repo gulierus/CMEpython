@@ -827,18 +827,6 @@ citlivosti. Současně z toho plyne, že binární call nemá použitelný rozsa
 5. Ani jedna nálepka není *ground truth*. Podle modelu skupiny může přibližně pětina
    abortivních drah legitimně nést dynamin, a ani dokonalá měření by proto nedala shodu 100 %.
 
-## 11. Reprodukce
-
-```bash
-python3 scripts/classify_trajectories.py --measured "lr registered/measured" \\
-    --movies "lr registered" --masks "lr registered/masks" \\
-    --sigma-slave 1.4356 --slave-channel 1 --master-channel 0      # výchozí α = 0,05
-for A in 0.001 0.005 0.01 0.1; do                                  # sweep přes α
-  python3 scripts/classify_trajectories.py ... --alpha $A "--out-suffix=-classified-a$A.csv"
-done
-python3 scripts/compute_boxmean.py                                 # box-mean readout
-python3 scripts/report_classification_comparison.py                # tento protokol + PDF
-```
 """
 
 
@@ -1097,10 +1085,6 @@ Usuzujeme, že jde o vlastnost prostředí drah, ne o selhání binomické korek
 abortivních drah legitimně nést dynamin, a ani dokonalá měření by proto nedala shodu 100\\,\\%.
 \\end{{enumerate}}
 
-\\section*{{11\\; Reprodukce}}
-\\texttt{{classify\\_trajectories.py}} (výchozí $\\alpha$ i sweep přes \\texttt{{--alpha}}),
-\\texttt{{compute\\_boxmean.py}}, \\texttt{{report\\_classification\\_comparison.py}}; přesné
-příkazy uvádí \\texttt{{protokol.md}}.
 \\end{{document}}
 """
 

@@ -408,16 +408,6 @@ což opět potvrzuje, že volba normalizace nehraje roli.
 6. Výsledek je konzistentní s úlohou B, kde na spojité amplitudě vyšla within-band AUC
    0,520 pro cmeAnalysis a 0,536 pro *box-mean* na stejných drahách.
 
-## 8. Reprodukce
-
-```bash
-python3 scripts/build_cme_corpus.py --variant both        # korpusy (CME_for_Helios/data)
-# na HELIOSu: ./setup_env.sh && ./submit_all.sh           # joby 238568 (raw), 238569 (norm)
-python3 scripts/report_detector_comparison.py             # tento protokol
-```
-
-Vstupy: `CME_for_Helios/runs/raw_238568/`, `.../normalized_238569/` a Matyášův
-`dynamin_v2_confusion_sweep.json` z větve `release/dynamin-confusion-v1`.
 """
 
 
@@ -613,10 +603,6 @@ před koncem); produktivní dráhy leží výš po celé okno.
 0{{,}}520 pro cmeAnalysis a 0{{,}}536 pro \\emph{{box-mean}} na stejných drahách.
 \\end{{enumerate}}
 
-\\section*{{8\\; Reprodukce}}
-\\texttt{{build\\_cme\\_corpus.py --variant both}} (korpusy); na HELIOSu
-\\texttt{{./setup\\_env.sh}} a \\texttt{{./submit\\_all.sh}} (joby 238568 a 238569);
-\\texttt{{report\\_detector\\_comparison.py}} (tento protokol).
 \\end{{document}}
 """
 
