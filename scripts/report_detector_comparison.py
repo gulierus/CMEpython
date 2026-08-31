@@ -310,8 +310,7 @@ Z tabulky 2 a obrázků 1 a 2 plyne trojí. Za prvé, surová a normalizovaná a
 prakticky stejné výsledky. Volba normalizace tedy nehraje roli, což odpovídá tomu, že
 amplituda cmeAnalysis má lokální pozadí odečtené již z konstrukce. Za druhé, amplituda
 cmeAnalysis dává mírně nižší, avšak řádově stejné hodnoty jako *box-mean*. Rozdíly ve
-*within-band* AUC jsou v setinách a leží pod mezifilmovým rozptylem, který Matyášova
-dokumentace uvádí kolem 0,05. Za třetí, pořadí modelů i velikost délkového efektu zůstávají
+*within-band* AUC jsou v setinách a leží pod mezifilmovým rozptylem, který dokumentace původní analýzy uvádí kolem 0,05. Za třetí, pořadí modelů i velikost délkového efektu zůstávají
 stejné. Korelace skóre s délkou je u všech readoutů shodná (tabulka 1) a rozdíl mezi pooled
 a within-band hodnotou se drží kolem 0,15 až 0,18. Usuzujeme, že kvalita měření úzkým hrdlem
 nebyla, a to je hlavní odpověď tohoto experimentu.
