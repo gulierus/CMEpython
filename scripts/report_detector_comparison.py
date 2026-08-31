@@ -362,18 +362,25 @@ třídy a po délkových pásmech.
 ![průběhy amplitudy](figA4_profiles.png)
 
 *Obrázek 4: Mediánový průběh amplitudy dynaminu (cmeAnalysis) v posledních 20 s před
-koncem dráhy, po délkových pásmech; plná čára je medián, pás mezikvartilové rozpětí.
-Amplituda je dělená průměrem buňky (stejná normalizace jako box-mean readout), takže
-mediány přes filmy nejsou tažené jasnými filmy a osa je srovnatelná s panelem B původní analýzy.*
+koncem dráhy, po délkových pásmech; plná čára je medián, poloprůhledný pás mezikvartilové
+rozpětí dané třídy (modrý SI+, oranžový SI−); šedá plocha je překryv obou pásem. Pásy
+ukazují rozpětí populace drah, ne nejistotu mediánu. Amplituda je dělená průměrem buňky
+(stejná normalizace jako box-mean readout), takže mediány přes filmy nejsou tažené jasnými
+filmy a osa je srovnatelná s panelem B původní analýzy.*
 
 **Diskuze:**
 
-Z obrázku 4 plyne dvojí. Za prvé, produktivní dráhy leží nad abortivními po celé okno,
+Z obrázku 4 plyne trojí. Za prvé, produktivní dráhy leží nad abortivními po celé okno,
 a to ve všech pásmech kromě nejkratšího; rozdíl s délkou pásma roste. To je stejný trvalý
 posun, jaký ukazují koeficienty v části 6. Za druhé, tvar průběhu je u obou tříd téměř
 shodný: amplituda stoupá k vrcholu přibližně 8 až 10 s před koncem dráhy a k samotnému
 konci klesá. Průběh na konci života tedy nenese podpis specifický pro produktivní dráhy;
-rozdíl tříd je v úrovni, ne ve tvaru.
+rozdíl tříd je v úrovni, ne ve tvaru. Za třetí, mezikvartilová pásma obou tříd se překrývají
+téměř úplně (šedá plocha); prostřední polovina produktivních a prostřední polovina
+abortivních drah leží prakticky ve stejném rozsahu amplitud. Rozdíl tříd se drží hlavně
+v horním chvostu, kde modrý pás přesahuje oranžový. Podle amplitudy jedné dráhy v jednom
+okamžiku se tedy třída poznat nedá; to je vizuální podoba within-band AUC kolem 0,52
+z části 2, přestože posun mediánů je na úrovni populace prokazatelný.
 
 ## 6. Čeho se model drží: koeficienty logistické regrese
 
@@ -478,11 +485,13 @@ def build_tex(runs, meta):
                      "příspěvku délky trajektorie.", "fig:grid")
     f_prof = tex_fig("figA4_profiles.png",
                      "Mediánový průběh amplitudy dynaminu (cmeAnalysis) v posledních 20 s "
-                     "před koncem dráhy, po délkových pásmech; plná čára je medián, pás "
-                     "mezikvartilové rozpětí. Amplituda je dělená průměrem buňky (stejná "
-                     "normalizace jako box-mean readout), takže mediány přes filmy nejsou "
-                     "tažené jasnými filmy a osa je srovnatelná s panelem B původní analýzy.",
-                     "fig:prof")
+                     "před koncem dráhy, po délkových pásmech; plná čára je medián, "
+                     "poloprůhledný pás mezikvartilové rozpětí dané třídy (modrý SI+, "
+                     "oranžový SI−); šedá plocha je překryv obou pásem. Pásy ukazují rozpětí "
+                     "populace drah, ne nejistotu mediánu. Amplituda je dělená průměrem "
+                     "buňky (stejná normalizace jako box-mean readout), takže mediány přes "
+                     "filmy nejsou tažené jasnými filmy a osa je srovnatelná s panelem B "
+                     "původní analýzy.", "fig:prof")
     return TEX_HEAD + f"""
 {{\\LARGE\\bfseries Detektor dynaminové pozitivity\\\\na intenzitě z cmeAnalysis}}\\\\[4pt]
 {{\\small Datum {meta['date']} \\;·\\; CMEpython {meta['git']} \\;·\\;
@@ -563,12 +572,17 @@ Obrázek~\\ref{{fig:prof}} ukazuje mediánový průběh amplitudy cmeAnalysis v~
 {f_prof}
 \\textbf{{Diskuze:}}
 
-Z~obrázku~\\ref{{fig:prof}} plyne dvojí. Za prvé, produktivní dráhy leží nad abortivními po
+Z~obrázku~\\ref{{fig:prof}} plyne trojí. Za prvé, produktivní dráhy leží nad abortivními po
 celé okno, a to ve všech pásmech kromě nejkratšího; rozdíl s~délkou pásma roste. To je
 stejný trvalý posun, jaký ukazují koeficienty v~části~6. Za druhé, tvar průběhu je u~obou
 tříd téměř shodný: amplituda stoupá k~vrcholu přibližně 8 až 10\\,s před koncem dráhy
 a k~samotnému konci klesá. Průběh na konci života tedy nenese podpis specifický pro
-produktivní dráhy; rozdíl tříd je v~úrovni, ne ve tvaru.
+produktivní dráhy; rozdíl tříd je v~úrovni, ne ve tvaru. Za třetí, mezikvartilová pásma obou
+tříd se překrývají téměř úplně (šedá plocha); prostřední polovina produktivních a prostřední
+polovina abortivních drah leží prakticky ve stejném rozsahu amplitud. Rozdíl tříd se drží
+hlavně v~horním chvostu, kde modrý pás přesahuje oranžový. Podle amplitudy jedné dráhy
+v~jednom okamžiku se tedy třída poznat nedá; to je vizuální podoba \\emph{{within-band}} AUC
+kolem 0{{,}}52 z~části~2, přestože posun mediánů je na úrovni populace prokazatelný.
 
 \\section*{{6\\; Čeho se model drží: koeficienty logistické regrese}}
 Z~dřívějšího běhu na týchž korpusech máme standardizované koeficienty logistické regrese po
