@@ -426,6 +426,27 @@ což opět potvrzuje, že volba normalizace nehraje roli.
 6. Výsledek je konzistentní s úlohou B, kde na spojité amplitudě vyšla within-band AUC
    0,520 pro cmeAnalysis a 0,536 pro *box-mean* na stejných drahách.
 
+## Příloha: úplné mozaiky ze sweepů
+
+Pro úplnost přikládáme původní mozaiky ze všech tří běhů. Každá ukazuje jeden readout
+napříč všemi osmi konfiguracemi filtrů (řádky) a šesti modely (sloupce). V hlavním textu
+nejsou ze dvou důvodů. Za prvé, odpovídají na jinou otázku než mřížka v části 4, a to jak
+se chová jeden readout při různém filtrování; srovnání readoutů buňka po buňce mezi třemi
+velkými mozaikami vést nejde. Za druhé, informaci napříč konfiguracemi shrnuje tabulka 3.
+Zde jsou mozaiky v plné velikosti pro kontrolu detailů.
+
+![mozaika box-mean](pooled_boxmean_original.png)
+
+*Obrázek 5: Původní referenční běh, box-mean 5×5; 8 konfigurací filtrů × 6 modelů,
+v buňkách matice 2×2 s Youdenovým prahem.*
+
+![mozaika cme surová](pooled_cme_raw.png)
+
+*Obrázek 6: Náš běh, surová amplituda cmeAnalysis; stejné uspořádání.*
+
+![mozaika cme normalizovaná](pooled_cme_normalized.png)
+
+*Obrázek 7: Náš běh, normalizovaná amplituda cmeAnalysis; stejné uspořádání.*
 """
 
 
@@ -631,6 +652,28 @@ před koncem); produktivní dráhy leží výš po celé okno.
 \\item Výsledek je konzistentní s~úlohou B, kde na spojité amplitudě vyšla within-band AUC
 0{{,}}520 pro cmeAnalysis a 0{{,}}536 pro \\emph{{box-mean}} na stejných drahách.
 \\end{{enumerate}}
+
+\\clearpage
+\\section*{{Příloha\\; Úplné mozaiky ze sweepů}}
+Pro úplnost přikládáme původní mozaiky ze všech tří běhů. Každá ukazuje jeden readout
+napříč všemi osmi konfiguracemi filtrů (řádky) a šesti modely (sloupce). V~hlavním textu
+nejsou ze dvou důvodů. Za prvé, odpovídají na jinou otázku než mřížka v~části~4, a to jak
+se chová jeden readout při různém filtrování; srovnání readoutů buňka po buňce mezi třemi
+velkými mozaikami vést nejde. Za druhé, informaci napříč konfiguracemi shrnuje
+tabulka~\\ref{{tab:cfg}}. Zde jsou mozaiky v~plné velikosti pro kontrolu detailů.
+
+\\begin{{figure}}[H]\\centering
+\\includegraphics[width=\\linewidth,height=0.86\\textheight,keepaspectratio]{{pooled_boxmean_original.png}}
+\\caption{{Původní referenční běh, box-mean 5$\\times$5; 8 konfigurací filtrů $\\times$ 6 modelů,
+v~buňkách matice 2$\\times$2 s~Youdenovým prahem.}}\\label{{fig:app1}}\\end{{figure}}
+
+\\begin{{figure}}[H]\\centering
+\\includegraphics[width=\\linewidth,height=0.86\\textheight,keepaspectratio]{{pooled_cme_raw.png}}
+\\caption{{Náš běh, surová amplituda cmeAnalysis; stejné uspořádání.}}\\label{{fig:app2}}\\end{{figure}}
+
+\\begin{{figure}}[H]\\centering
+\\includegraphics[width=\\linewidth,height=0.86\\textheight,keepaspectratio]{{pooled_cme_normalized.png}}
+\\caption{{Náš běh, normalizovaná amplituda cmeAnalysis; stejné uspořádání.}}\\label{{fig:app3}}\\end{{figure}}
 
 \\end{{document}}
 """
