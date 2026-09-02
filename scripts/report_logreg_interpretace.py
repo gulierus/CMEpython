@@ -236,7 +236,28 @@ produktivních drah), a proto se nefiltruje. Za čtvrté, end-observed korpus d�
 než interior; rozdíl jde z přidaných drah s useknutým začátkem (delší a jasnější), ne
 z lepšího modelu.
 
-## 6. Interpretace a meze
+## 6. Čeho se regrese drží: koeficienty
+
+Přirozená otázka zní, které vstupy model táhnou. U referenčního běhu na ni nelze odpovědět
+přímo: větev s výsledky obsahuje výkonnostní čísla, ale hodnoty naučených vah k box-mean
+modelu neukládá. K dispozici je ovšem rovnocenná analýza z opakování téhož experimentu
+s amplitudou cmeAnalysis, tedy stejné featury, stejný trénink a detektor s výkonem shodným
+v setinách. Její koeficienty (standardizované, fitované po délkových pásmech, s 95%
+intervaly bootstrapem po filmech) ukazují jednoznačný vzor. Nejsilnější a stabilně kladný
+je průměr amplitudy přes část života před terminálním oknem; v pásmu 10–19 snímků jeho
+maximum. Váhy jednotlivých bodů terminálního okna jsou malé a většinou s intervalem přes
+nulu.
+
+**Diskuze:**
+
+Dá se říct, že regrese rozpoznává produktivní dráhy podle trvale vyššího dynaminu během
+života, ne podle výrazné události na konci; kdyby scission nesl specifický podpis, ležely
+by váhy na konci okna. Přenos tohoto čtení na referenční box-mean model je úsudek, byť
+podložený shodou výkonu i vstupů; přímé potvrzení by vyžadovalo doběhnout koeficientový
+režim na referenčním korpusu. Podrobný návod, jak standardizované koeficienty číst, uvádí
+protokol detektoru.
+
+## 7. Interpretace a meze
 
 **Co čísla říkají.** Dynaminový průběh nese informaci o SI štítku nad rámec délky dráhy,
 avšak malou: dvě náhodně vybrané dráhy stejné délky, jedna produktivní a jedna abortivní,
@@ -262,7 +283,7 @@ odpovídá XGBoostu i MLP (rozdíly v setinách), má menší délkový únik a 
 interpretovatelné. Naše nezávislá kontrola s intenzitou z cmeAnalysis dává na srovnatelném
 korpusu tentýž obraz; podrobnosti v protokolu detektoru.
 
-## 7. Shrnutí
+## 8. Shrnutí
 
 1. Trénuje se na 27 featurách z průběhu box-mean excessu (okno posledních 20 s, souhrn
    střední fáze, tři skaláry); délka dráhy mezi featurami není, model si ji ale zrekonstruuje.
@@ -271,7 +292,9 @@ korpusu tentýž obraz; podrobnosti v protokolu detektoru.
 3. Poolovaná AUC ≈ {cz(prim['auc'], 2)} je z většiny délka (gap +{cz(prim['gap'], 2)});
    délkově očištěný signál je within-band AUC ≈ {cz(prim['wb'], 2)}, malý, ale nad nullem.
 4. Výsledek je robustní vůči filtrům; end-observed čísla zvedá složení korpusu, ne model.
-5. Model je interní diagnostika readoutu, ne dynaminová reference pro Figure 3.
+5. Koeficienty rovnocenné analýzy ukazují, že regrese stojí na trvale zvýšeném dynaminu
+   během života, ne na terminální události; referenční běh vlastní váhy neukládá.
+6. Model je interní diagnostika readoutu, ne dynaminová reference pro Figure 3.
 """
 
 
@@ -437,7 +460,27 @@ výsledek je robustní vůči filtrování; přísnější filtry within-band AU
 end-observed korpus dává vyšší čísla než interior; rozdíl jde z~přidaných drah s~useknutým
 začátkem (delší a jasnější), ne z~lepšího modelu.
 
-\\section*{{6\\; Interpretace a meze}}
+\\section*{{6\\; Čeho se regrese drží: koeficienty}}
+Přirozená otázka zní, které vstupy model táhnou. U~referenčního běhu na ni nelze odpovědět
+přímo: větev s~výsledky obsahuje výkonnostní čísla, ale hodnoty naučených vah k~box-mean
+modelu neukládá. K~dispozici je ovšem rovnocenná analýza z~opakování téhož experimentu
+s~amplitudou cmeAnalysis, tedy stejné featury, stejný trénink a detektor s~výkonem shodným
+v~setinách. Její koeficienty (standardizované, fitované po délkových pásmech, s~95\\,\\%
+intervaly bootstrapem po filmech) ukazují jednoznačný vzor. Nejsilnější a stabilně kladný
+je průměr amplitudy přes část života před terminálním oknem; v~pásmu 10--19 snímků jeho
+maximum. Váhy jednotlivých bodů terminálního okna jsou malé a většinou s~intervalem přes
+nulu.
+\\par
+\\textbf{{Diskuze:}}
+
+Dá se říct, že regrese rozpoznává produktivní dráhy podle trvale vyššího dynaminu během
+života, ne podle výrazné události na konci; kdyby scission nesl specifický podpis, ležely
+by váhy na konci okna. Přenos tohoto čtení na referenční box-mean model je úsudek, byť
+podložený shodou výkonu i vstupů; přímé potvrzení by vyžadovalo doběhnout koeficientový
+režim na referenčním korpusu. Podrobný návod, jak standardizované koeficienty číst, uvádí
+protokol detektoru.
+
+\\section*{{7\\; Interpretace a meze}}
 \\textbf{{Co čísla říkají.}} Dynaminový průběh nese informaci o~SI štítku nad rámec délky
 dráhy, avšak malou: dvě náhodně vybrané dráhy stejné délky, jedna produktivní a jedna
 abortivní, seřadí model správně asi v~58\\,\\% případů (proti 50\\,\\% náhody). Sens
@@ -462,7 +505,7 @@ výkonem odpovídá XGBoostu i MLP (rozdíly v~setinách), má menší délkový
 koeficienty jsou interpretovatelné. Naše nezávislá kontrola s~intenzitou z~cmeAnalysis dává
 na srovnatelném korpusu tentýž obraz; podrobnosti v~protokolu detektoru.
 
-\\section*{{7\\; Shrnutí}}
+\\section*{{8\\; Shrnutí}}
 \\begin{{enumerate}}
 \\item Trénuje se na 27 featurách z~průběhu box-mean excessu (okno posledních 20\\,s, souhrn
 střední fáze, tři skaláry); délka dráhy mezi featurami není, model si ji ale zrekonstruuje.
@@ -472,6 +515,8 @@ kontrolou je permutovaný null a netrénovaná skóre.
 +{cz(prim['gap'], 2)}); délkově očištěný signál je within-band AUC $\\approx$
 {cz(prim['wb'], 2)}, malý, ale nad nullem.
 \\item Výsledek je robustní vůči filtrům; end-observed čísla zvedá složení korpusu, ne model.
+\\item Koeficienty rovnocenné analýzy ukazují, že regrese stojí na trvale zvýšeném dynaminu
+během života, ne na terminální události; referenční běh vlastní váhy neukládá.
 \\item Model je interní diagnostika readoutu, ne dynaminová reference pro Figure~3.
 \\end{{enumerate}}
 \\end{{document}}
