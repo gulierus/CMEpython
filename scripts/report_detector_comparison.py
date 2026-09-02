@@ -273,7 +273,10 @@ Ptáme se, zda kvalita měření byla úzkým hrdlem předchozích výsledků.
 Postupovali jsme takto. Nejprve jsme z našich měření sestavili dva korpusy ve formátu, který
 převzatý trénovací kód čte beze změny. V prvním je amplituda v surových jednotkách kamery. Ve druhém je
 navíc vydělena biexponenciálním fitem průměrů snímků buňky, tedy stejnou normalizací, jakou
-používá referenční *box-mean* readout. Konvence `intenzita = 1 + amplituda` zajišťuje, že jeho
+používá referenční *box-mean* readout. Slovem *readout* (odečet) přitom označujeme způsob,
+jakým se z obrazu získá číslo „kolik dynaminu je na daném místě v daném snímku"; zde buď
+průměr okénka 5×5 pixelů (*box-mean*), nebo amplituda PSF fitu cmeAnalysis.
+Konvence `intenzita = 1 + amplituda` zajišťuje, že jeho
 `excess` je přímo amplituda cmeAnalysis. Následně jsme na výpočetním clusteru HELIOS spustili
 převzatý trénovací skript nad oběma korpusy, a to bez jakékoli úpravy kódu. Skript trénuje šest
 modelů v osmi konfiguracích filtrů, s pětinásobnou křížovou validací grupovanou po filmech
@@ -565,7 +568,10 @@ Ptáme se, zda kvalita měření byla úzkým hrdlem předchozích výsledků.
 Postupovali jsme takto. Nejprve jsme z~našich měření sestavili dva korpusy ve formátu, který
 převzatý trénovací kód čte beze změny. V~prvním je amplituda v~surových jednotkách kamery. Ve druhém je
 navíc vydělena biexponenciálním fitem průměrů snímků buňky, tedy stejnou normalizací, jakou
-používá jeho \\emph{{box-mean}} readout. Konvence \\texttt{{intenzita = 1 + amplituda}}
+používá referenční \\emph{{box-mean}} readout. Slovem \\emph{{readout}} (odečet) přitom
+označujeme způsob, jakým se z~obrazu získá číslo ,,kolik dynaminu je na daném místě v~daném
+snímku``; zde buď průměr okénka 5$\\times$5 pixelů (\\emph{{box-mean}}), nebo amplituda PSF
+fitu cmeAnalysis. Konvence \\texttt{{intenzita = 1 + amplituda}}
 zajišťuje, že jeho \\texttt{{excess}} je přímo amplituda cmeAnalysis. Následně jsme na
 výpočetním clusteru HELIOS spustili převzatý trénovací skript nad oběma korpusy, a to bez
 jakékoli úpravy kódu. Skript trénuje šest modelů v~osmi konfiguracích filtrů,

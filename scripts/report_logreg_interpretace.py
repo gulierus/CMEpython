@@ -125,11 +125,16 @@ téhož experimentu s intenzitou z cmeAnalysis zde záměrně neřešíme; je v 
 Trénovalo se na korpusu 15 filmů U2OS (2 s/snímek, 79,1 nm/px). Každá dráha klatrinové jamky
 nese nálepku: *produktivní* ⟺ max SI přes život > 0,7. Dynaminová intenzita dráhy je tzv.
 *box-mean* readout, a to průměr 5×5 pixelů dynaminového kanálu na pozici jamky v každém
-snímku, vydělený biexponenciálním fitem průměrů snímků dané buňky. Po tomto dělení je 1
+snímku, vydělený biexponenciálním fitem průměrů snímků dané buňky. Slovem *readout*
+(odečet) obecně označujeme způsob, jakým se z obrazu získá číslo „kolik dynaminu je na
+daném místě v daném snímku"; box-mean je jedna z možností, amplituda PSF fitu
+z cmeAnalysis jiná. Po tomto dělení je 1
 rovna průměru buňky; pracuje se s *excessem* = hodnota − 1, takže 0 znamená „na úrovni
 průměru buňky". Poznamenejme dvě vlastnosti volby. Za prvé, dělení průměrem buňky srovnává
 filmy s různým jasem a odstraňuje blednutí. Za druhé, box-mean sbírá všechen signál v okénku,
 tedy i difuzní membránový dynamin a příspěvky sousedních jamek; lokální pozadí se neodečítá.
+Příklad pro představu: okénko má průměrný jas 1 300 a průměr buňky v tom čase je 1 000;
+hodnota readoutu je 1,3 a excess 0,3, tedy „o 30 % nad průměrem buňky".
 
 Korpus se vyhodnocuje v osmi konfiguracích filtrů (tabulka 1): kombinace *cluster* filtru
 (žádný, < 3, < 2), vzdálenostního filtru (2. nejbližší soused ≥ 5 px) a úplnosti dráhy
@@ -157,23 +162,47 @@ u krátkých drah; to je známý strukturální únik.
 
 ## 4. Co se děje na pozadí: trénink a vyhodnocení
 
-Postup je pro každou konfiguraci stejný.
+Postup je pro každou konfiguraci stejný; projděme ho krok za krokem.
 
-1. Sestaví se matice drahy × 27 featur a vektor SI nálepek.
-2. Featury projdou mediánovou imputací a standardizací (odečtení průměru, dělení směrodatnou
-   odchylkou).
-3. Natrénuje se logistická regrese s mírnou L2 regularizací (C = 1, řešič lbfgs).
-4. Vyhodnocení je *out-of-fold*: filmy se rozdělí do 5 skupin, natrénuje se 5 nezávislých
-   modelů, každý na 12 filmech, a každá dráha dostane skóre od modelu, který její film
-   neviděl. Grupování po filmech brání úniku „poznávání buňky".
-5. Z agregovaných OOF skóre se zvolí práh maximalizací Youdenova J (sens + spec − 1)
-   a spočítá confusion matice. Práh je volen na týchž skóre, tedy *in-sample*; sens a spec
-   jsou proto mírně optimistické. AUC touto volbou dotčená není.
-6. Jako kontroly běží permutovaný null (zamíchané nálepky; musí vyjít u 0,5) a netrénovaná
-   skóre (výška peaku, peak − vlastní baseline).
-7. Primární metrikou je *within-band* AUC, tedy AUC počítaná jen mezi drahami podobné délky
-   (12 kvantilových strat, vážení počtem porovnatelných párů). Rozdíl pooled − within-band
-   (gap) měří, kolik výkonu nese délka.
+**Vstupní tabulka.** Představme si tabulku: jeden řádek je jedna dráha, 27 sloupců jsou
+čísla z části 3 a vedle nich stojí nálepka produktivní/abortivní. Nic jiného model nevidí;
+neví, ze kterého filmu dráha pochází, a délku dráhy dostává jen nepřímo.
+
+**Srovnání měřítek (standardizace).** Sloupce mají různé jednotky a rozsahy; průměrný
+excess je řádově desetina, nejdelší běh významných snímků desítky. Aby byly souměřitelné,
+každý sloupec se přepočte: odečte se jeho průměr a vydělí se směrodatnou odchylkou.
+Hodnota +1 pak vždy znamená „o jednu typickou odchylku nad průměrem", ať jde o amplitudu,
+podíl, nebo počet. Případné chybějící hodnoty se předtím doplní mediánem sloupce.
+
+**Model.** Logistická regrese je vážený součet. Každé z 27 čísel vynásobí svou vahou,
+výsledky sečte a součet převede na pravděpodobnost mezi 0 a 1, že dráha je produktivní.
+Trénink hledá váhy, se kterými tyto pravděpodobnosti nejlépe sedí na skutečné nálepky.
+Mírná regularizace (L2, C = 1) drží váhy malé, aby model nesázel příliš na jednotlivé
+sloupce.
+
+**Poctivé vyhodnocení (out-of-fold).** Kdyby se model hodnotil na drahách, na kterých se
+učil, vyšla by čísla přikrášlená. Filmy se proto rozdělí do 5 skupin a natrénuje se
+5 nezávislých modelů, každý na 12 filmech. Každá dráha pak dostane skóre od toho modelu,
+který její film při tréninku neviděl. Dělí se po celých filmech, ne po drahách; dráhy
+z téže buňky jsou si totiž podobné a model by se jinak naučil poznávat buňku místo
+biologie.
+
+**Práh a confusion matice.** Skóre je číslo mezi 0 a 1; aby vznikla tabulka
+správně/špatně, je třeba zvolit hranici. Youdenovo J volí hranici tam, kde je součet
+sensitivity a specificity nejvyšší. Hranice se ovšem vybírá na týchž skóre, která se pak
+hodnotí (*in-sample*); sens a spec jsou proto mírně přikrášlené. AUC žádnou hranici
+nepotřebuje, a přikrášlená tedy není.
+
+**Kontroly.** Vedle modelu běží permutovaný null: tytéž featury, ale náhodně zamíchané
+nálepky. Musí vyjít u 0,5; kdyby ne, je v postupu únik. A netrénovaná skóre (výška peaku,
+peak − vlastní baseline) říkají, co zvládne jedno číslo bez jakéhokoli učení.
+
+**Délkově očištěné čtení (within-band).** Poolovaná AUC porovnává i krátkou dráhu
+s dlouhou; protože obě nálepky s délkou rostou, část výkonu je jen délka. *Within-band*
+AUC proto porovnává pouze dvojice drah podobné délky (12 kvantilových strat, vážení počtem
+porovnatelných párů) a odpovídá na otázku: vyberme náhodně produktivní a abortivní dráhu
+stejné délky; jak často je model seřadí správně? Rozdíl pooled − within-band (gap) říká,
+kolik výkonu nesla délka.
 
 ## 5. Výsledky
 
@@ -298,11 +327,16 @@ Trénovalo se na korpusu 15 filmů U2OS (2\\,s/snímek, 79{{,}}1\\,nm/px). Každ
 jamky nese nálepku: \\emph{{produktivní}} $\\Leftrightarrow$ max SI přes život $>$ 0{{,}}7.
 Dynaminová intenzita dráhy je tzv. \\emph{{box-mean}} readout, a to průměr 5$\\times$5 pixelů
 dynaminového kanálu na pozici jamky v~každém snímku, vydělený biexponenciálním fitem průměrů
-snímků dané buňky. Po tomto dělení je 1 rovna průměru buňky; pracuje se s~\\emph{{excessem}}
+snímků dané buňky. Slovem \\emph{{readout}} (odečet) obecně označujeme způsob, jakým se
+z~obrazu získá číslo ,,kolik dynaminu je na daném místě v~daném snímku``; box-mean je jedna
+z~možností, amplituda PSF fitu z~cmeAnalysis jiná. Po tomto dělení je 1 rovna průměru
+buňky; pracuje se s~\\emph{{excessem}}
 = hodnota $-$ 1, takže 0 znamená ,,na úrovni průměru buňky``. Poznamenejme dvě vlastnosti
 volby. Za prvé, dělení průměrem buňky srovnává filmy s~různým jasem a odstraňuje blednutí.
 Za druhé, box-mean sbírá všechen signál v~okénku, tedy i difuzní membránový dynamin
-a příspěvky sousedních jamek; lokální pozadí se neodečítá.
+a příspěvky sousedních jamek; lokální pozadí se neodečítá. Příklad pro představu: okénko má
+průměrný jas 1\\,300 a průměr buňky v~tom čase je 1\\,000; hodnota readoutu je 1{{,}}3
+a excess 0{{,}}3, tedy ,,o~30\\,\\% nad průměrem buňky``.
 \\par
 Korpus se vyhodnocuje v~osmi konfiguracích filtrů (tabulka~\\ref{{tab:lr}}): kombinace
 \\emph{{cluster}} filtru (žádný, $<$ 3, $<$ 2), vzdálenostního filtru (2.~nejbližší soused
@@ -328,24 +362,49 @@ $\\rho$ skóre--délka {cz(prim['rho'], 2)}, měřeno na XGBoost skóre téhož 
 nulové featury střední fáze u~krátkých drah; to je známý strukturální únik.
 
 \\section*{{4\\; Co se děje na pozadí: trénink a vyhodnocení}}
-Postup je pro každou konfiguraci stejný.
-\\begin{{enumerate}}
-\\item Sestaví se matice drahy $\\times$ 27 featur a vektor SI nálepek.
-\\item Featury projdou mediánovou imputací a standardizací (odečtení průměru, dělení
-směrodatnou odchylkou).
-\\item Natrénuje se logistická regrese s~mírnou L2 regularizací (C = 1, řešič lbfgs).
-\\item Vyhodnocení je \\emph{{out-of-fold}}: filmy se rozdělí do 5 skupin, natrénuje se
-5 nezávislých modelů, každý na 12 filmech, a každá dráha dostane skóre od modelu, který její
-film neviděl. Grupování po filmech brání úniku ,,poznávání buňky``.
-\\item Z~agregovaných OOF skóre se zvolí práh maximalizací Youdenova J (sens + spec $-$ 1)
-a spočítá confusion matice. Práh je volen na týchž skóre, tedy \\emph{{in-sample}}; sens
-a spec jsou proto mírně optimistické. AUC touto volbou dotčená není.
-\\item Jako kontroly běží permutovaný null (zamíchané nálepky; musí vyjít u~0{{,}}5)
-a netrénovaná skóre (výška peaku, peak $-$ vlastní baseline).
-\\item Primární metrikou je \\emph{{within-band}} AUC, tedy AUC počítaná jen mezi drahami
-podobné délky (12 kvantilových strat, vážení počtem porovnatelných párů). Rozdíl pooled $-$
-within-band (gap) měří, kolik výkonu nese délka.
-\\end{{enumerate}}
+Postup je pro každou konfiguraci stejný; projděme ho krok za krokem.
+\\par
+\\textbf{{Vstupní tabulka.}} Představme si tabulku: jeden řádek je jedna dráha, 27 sloupců
+jsou čísla z~části~3 a vedle nich stojí nálepka produktivní/abortivní. Nic jiného model
+nevidí; neví, ze kterého filmu dráha pochází, a délku dráhy dostává jen nepřímo.
+\\par
+\\textbf{{Srovnání měřítek (standardizace).}} Sloupce mají různé jednotky a rozsahy;
+průměrný excess je řádově desetina, nejdelší běh významných snímků desítky. Aby byly
+souměřitelné, každý sloupec se přepočte: odečte se jeho průměr a vydělí se směrodatnou
+odchylkou. Hodnota +1 pak vždy znamená ,,o~jednu typickou odchylku nad průměrem``, ať jde
+o~amplitudu, podíl, nebo počet. Případné chybějící hodnoty se předtím doplní mediánem
+sloupce.
+\\par
+\\textbf{{Model.}} Logistická regrese je vážený součet. Každé z~27 čísel vynásobí svou
+vahou, výsledky sečte a součet převede na pravděpodobnost mezi 0 a 1, že dráha je
+produktivní. Trénink hledá váhy, se kterými tyto pravděpodobnosti nejlépe sedí na skutečné
+nálepky. Mírná regularizace (L2, C = 1) drží váhy malé, aby model nesázel příliš na
+jednotlivé sloupce.
+\\par
+\\textbf{{Poctivé vyhodnocení (out-of-fold).}} Kdyby se model hodnotil na drahách, na
+kterých se učil, vyšla by čísla přikrášlená. Filmy se proto rozdělí do 5 skupin a natrénuje
+se 5 nezávislých modelů, každý na 12 filmech. Každá dráha pak dostane skóre od toho modelu,
+který její film při tréninku neviděl. Dělí se po celých filmech, ne po drahách; dráhy
+z~téže buňky jsou si totiž podobné a model by se jinak naučil poznávat buňku místo
+biologie.
+\\par
+\\textbf{{Práh a confusion matice.}} Skóre je číslo mezi 0 a 1; aby vznikla tabulka
+správně/špatně, je třeba zvolit hranici. Youdenovo J volí hranici tam, kde je součet
+sensitivity a specificity nejvyšší. Hranice se ovšem vybírá na týchž skóre, která se pak
+hodnotí (\\emph{{in-sample}}); sens a spec jsou proto mírně přikrášlené. AUC žádnou hranici
+nepotřebuje, a přikrášlená tedy není.
+\\par
+\\textbf{{Kontroly.}} Vedle modelu běží permutovaný null: tytéž featury, ale náhodně
+zamíchané nálepky. Musí vyjít u~0{{,}}5; kdyby ne, je v~postupu únik. A netrénovaná skóre
+(výška peaku, peak $-$ vlastní baseline) říkají, co zvládne jedno číslo bez jakéhokoli
+učení.
+\\par
+\\textbf{{Délkově očištěné čtení (within-band).}} Poolovaná AUC porovnává i krátkou dráhu
+s~dlouhou; protože obě nálepky s~délkou rostou, část výkonu je jen délka.
+\\emph{{Within-band}} AUC proto porovnává pouze dvojice drah podobné délky (12 kvantilových
+strat, vážení počtem porovnatelných párů) a odpovídá na otázku: vyberme náhodně produktivní
+a abortivní dráhu stejné délky; jak často je model seřadí správně? Rozdíl pooled $-$
+within-band (gap) říká, kolik výkonu nesla délka.
 
 \\section*{{5\\; Výsledky}}
 {t}

@@ -757,7 +757,9 @@ amplitudu na dráhu a práh položíme na její 90. percentil. Tím dostaneme st
 pozitivních, jaký má *box-mean* call, a to desetinu drah. Dále hodnotíme amplitudu i spojitě,
 tedy bez prahu, pomocí AUC. Aby srovnání nezáviselo na korpusu, spočítali jsme *box-mean* 5×5
 vlastní implementací na stejných drahách a filmech, a to jako průměr 5×5 px dynaminového
-kanálu dělený biexponenciálním fitem průměrů snímků buňky.
+kanálu dělený biexponenciálním fitem průměrů snímků buňky. Oběma způsobům odečtu říkáme
+dále *readouty*; readout je způsob, jakým se z obrazu získá číslo „kolik dynaminu je na
+daném místě v daném snímku" (průměr okénka u box-mean, amplituda PSF fitu u cmeAnalysis).
 
 {t_amp}
 
@@ -1042,7 +1044,9 @@ dráhu a práh položíme na její 90.~percentil. Tím dostaneme stejný podíl 
 \\emph{{box-mean}} call, a to desetinu drah. Dále hodnotíme amplitudu i spojitě, tedy bez prahu,
 pomocí AUC. Aby srovnání nezáviselo na korpusu, spočítali jsme \\emph{{box-mean}} 5$\\times$5
 vlastní implementací na stejných drahách a filmech, a to jako průměr 5$\\times$5\\,px dynaminového
-kanálu dělený biexponenciálním fitem průměrů snímků buňky.
+kanálu dělený biexponenciálním fitem průměrů snímků buňky. Oběma způsobům odečtu říkáme dále
+\\emph{{readouty}}; readout je způsob, jakým se z~obrazu získá číslo ,,kolik dynaminu je na
+daném místě v~daném snímku`` (průměr okénka u~box-mean, amplituda PSF fitu u~cmeAnalysis).
 {t_amp}
 {f_amp}
 {box_diskuze}
