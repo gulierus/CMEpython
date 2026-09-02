@@ -397,25 +397,35 @@ populací, ne o oddělitelnost jednotlivých drah, kterou popisuje horní řada.
 
 ## 6. Čeho se model drží: koeficienty logistické regrese
 
-Vysvětleme nejprve, co je zde spočítáno. Pro každé délkové pásmo zvlášť se na drahách pásma
-natrénuje logistická regrese predikující SI nálepku z 27 featur. Featury se před fitem
-standardizují, tedy od každé se odečte průměr a vydělí se směrodatnou odchylkou. Koeficient
-pak má jednotný a čitelný význam: o kolik se změní logaritmus šance „být produktivní", když
-se daná featura zvedne o jednu směrodatnou odchylku a ostatní se drží. Příklad: koeficient
-+0,44 u průměrné amplitudy střední fáze (pásmo 40+) znamená, že dráha s touto amplitudou
-o 1 SD nad průměrem má e^0,44 ≈ 1,55× vyšší šanci být produktivní. Kladné znaménko táhne
-k „produktivní", záporné k „abortivní". Fituje se po pásmech právě proto, aby koeficienty
-nemohly stavět na délce dráhy.
+Připomeňme nejprve, co přesně model z dráhy vidí. Vstupem není celý průběh snímek po
+snímku. Jednotlivé body průběhu má model jen z posledních 20 s života (10 hodnot
+terminálního okna). Celá dřívější část života, tedy vše od vzniku dráhy po začátek okna,
+vstupuje pouze jako tři souhrnná čísla: průměr amplitudy, maximum amplitudy a podíl
+významných snímků v tomto úseku. K tomu tři skaláry přes celý život (maximum, poloha
+vrcholu, nejdelší běh významných snímků). Když tedy dále píšeme, že se model „drží rané
+a střední fáze", neznamená to jednotlivé rané snímky; znamená to právě tato souhrnná čísla.
 
-Nejistotu určuje bootstrap po filmech: 200× se s opakováním vylosuje 15 filmů, fit se
-zopakuje a z rozptylu koeficientu vznikne 95% interval. „Stabilní" říkáme koeficientu,
-jehož interval neobsahuje nulu. Soubory `dynamin_v2_logreg_coefs*` v obou runech nesou
-kompletní hodnoty i intervaly.
+Pro každé délkové pásmo zvlášť se na drahách pásma natrénuje logistická regrese predikující
+SI nálepku z těchto vstupů. Vstupy se před fitem standardizují, tedy od každého se odečte
+průměr a vydělí se směrodatnou odchylkou. Koeficient pak má jednotný a čitelný význam:
+o kolik se změní logaritmus šance „být produktivní", když se daný vstup zvedne o jednu
+směrodatnou odchylku a ostatní se drží. Příklad: koeficient +0,44 u průměru amplitudy před
+oknem (pásmo 40+) znamená, že dráha s tímto průměrem o 1 SD nad průměrem populace má
+e^0,44 ≈ 1,55× vyšší šanci být produktivní. Kladné znaménko táhne k „produktivní", záporné
+k „abortivní". Fituje se po pásmech právě proto, aby koeficienty nemohly stavět na délce
+dráhy.
 
-Výsledek: v pásmech 20–39 a 40+ je nejsilnějším stabilním koeficientem průměrná amplituda
-střední fáze života (kladná, +0,34 až +0,46), v pásmu 10–19 její maximum. Váhy jednotlivých
-bodů terminálního okna, tedy posledních 20 s před koncem dráhy, jsou proti tomu malé
-a většinou s intervalem přes nulu.
+A co znamená „stabilní": celý fit se 200× zopakuje, pokaždé na jiné náhodné sestavě filmů
+(15 filmů losovaných s opakováním, tzv. bootstrap). Z rozptylu koeficientu přes opakování
+vznikne 95% interval. Stabilní je koeficient, jehož interval neobsahuje nulu; jeho znaménko
+tedy nezávisí na tom, které konkrétní filmy se do datasetu trefily. Nestabilní koeficient
+může být artefakt jedné sestavy filmů a nevykládáme ho. Kompletní hodnoty i intervaly nesou
+soubory `dynamin_v2_logreg_coefs*` v obou runech.
+
+Výsledek: v pásmech 20–39 a 40+ je nejsilnějším stabilním koeficientem právě průměr
+amplitudy přes část života před oknem (kladný, +0,34 až +0,46), v pásmu 10–19 maximum téhož
+úseku. Váhy jednotlivých bodů terminálního okna, tedy posledních 20 s před koncem dráhy,
+jsou proti tomu malé a většinou s intervalem přes nulu.
 
 **Diskuze:**
 
@@ -639,24 +649,34 @@ započítává. Úzké pásy $\\pm$\\,SEM ukazují, že posun průměrů je odha
 o rozdíl průměrů populací, ne o oddělitelnost jednotlivých drah, kterou popisuje horní řada.
 
 \\section*{{6\\; Čeho se model drží: koeficienty logistické regrese}}
-Vysvětleme nejprve, co je zde spočítáno. Pro každé délkové pásmo zvlášť se na drahách pásma
-natrénuje logistická regrese predikující SI nálepku z~27 featur. Featury se před fitem
-standardizují, tedy od každé se odečte průměr a vydělí se směrodatnou odchylkou. Koeficient
-pak má jednotný a čitelný význam: o~kolik se změní logaritmus šance ,,být produktivní``,
-když se daná featura zvedne o~jednu směrodatnou odchylku a ostatní se drží. Příklad:
-koeficient +0{{,}}44 u~průměrné amplitudy střední fáze (pásmo 40+) znamená, že dráha s~touto
-amplitudou o~1~SD nad průměrem má $e^{{0{{,}}44}} \\approx 1{{,}}55\\times$ vyšší šanci být
-produktivní. Kladné znaménko táhne k~,,produktivní``, záporné k~,,abortivní``. Fituje se po
-pásmech právě proto, aby koeficienty nemohly stavět na délce dráhy.
+Připomeňme nejprve, co přesně model z~dráhy vidí. Vstupem není celý průběh snímek po
+snímku. Jednotlivé body průběhu má model jen z~posledních 20\\,s života (10 hodnot
+terminálního okna). Celá dřívější část života, tedy vše od vzniku dráhy po začátek okna,
+vstupuje pouze jako tři souhrnná čísla: průměr amplitudy, maximum amplitudy a podíl
+významných snímků v~tomto úseku. K~tomu tři skaláry přes celý život (maximum, poloha
+vrcholu, nejdelší běh významných snímků). Když tedy dále píšeme, že se model ,,drží rané
+a střední fáze``, neznamená to jednotlivé rané snímky; znamená to právě tato souhrnná čísla.
 \\par
-Nejistotu určuje bootstrap po filmech: 200$\\times$ se s~opakováním vylosuje 15 filmů, fit
-se zopakuje a z~rozptylu koeficientu vznikne 95\\,\\% interval. ,,Stabilní`` říkáme
-koeficientu, jehož interval neobsahuje nulu.
+Pro každé délkové pásmo zvlášť se na drahách pásma natrénuje logistická regrese predikující
+SI nálepku z~těchto vstupů. Vstupy se před fitem standardizují, tedy od každého se odečte
+průměr a vydělí se směrodatnou odchylkou. Koeficient pak má jednotný a čitelný význam:
+o~kolik se změní logaritmus šance ,,být produktivní``, když se daný vstup zvedne o~jednu
+směrodatnou odchylku a ostatní se drží. Příklad: koeficient +0{{,}}44 u~průměru amplitudy
+před oknem (pásmo 40+) znamená, že dráha s~tímto průměrem o~1~SD nad průměrem populace má
+$e^{{0{{,}}44}} \\approx 1{{,}}55\\times$ vyšší šanci být produktivní. Kladné znaménko táhne
+k~,,produktivní``, záporné k~,,abortivní``. Fituje se po pásmech právě proto, aby
+koeficienty nemohly stavět na délce dráhy.
 \\par
-Výsledek: v~pásmech 20--39 a 40+ je nejsilnějším stabilním koeficientem průměrná amplituda
-střední fáze života (kladná, +0{{,}}34 až +0{{,}}46), v~pásmu 10--19 její maximum. Váhy
-jednotlivých bodů terminálního okna, tedy posledních 20\\,s před koncem dráhy, jsou proti
-tomu malé a většinou s~intervalem přes nulu.
+A co znamená ,,stabilní``: celý fit se 200$\\times$ zopakuje, pokaždé na jiné náhodné
+sestavě filmů (15 filmů losovaných s~opakováním, tzv. bootstrap). Z~rozptylu koeficientu
+přes opakování vznikne 95\\,\\% interval. Stabilní je koeficient, jehož interval neobsahuje
+nulu; jeho znaménko tedy nezávisí na tom, které konkrétní filmy se do datasetu trefily.
+Nestabilní koeficient může být artefakt jedné sestavy filmů a nevykládáme ho.
+\\par
+Výsledek: v~pásmech 20--39 a 40+ je nejsilnějším stabilním koeficientem právě průměr
+amplitudy přes část života před oknem (kladný, +0{{,}}34 až +0{{,}}46), v~pásmu 10--19
+maximum téhož úseku. Váhy jednotlivých bodů terminálního okna, tedy posledních 20\\,s před
+koncem dráhy, jsou proti tomu malé a většinou s~intervalem přes nulu.
 \\par
 \\textbf{{Diskuze:}}
 
