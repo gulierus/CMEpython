@@ -826,7 +826,7 @@ citlivosti. Současně z toho plyne, že binární call nemá použitelný rozsa
 3. Posun amplitud mezi SI třídami je prokazatelný, ale malý (tabulka 5).
 4. Délková závislost vzniká již na úrovni jednotlivých snímků (obrázek 3). Usuzujeme, že jde
    o vlastnost prostředí drah, ne o selhání binomické korekce.
-5. Ani jedna štítek není *ground truth*. Podle modelu skupiny může přibližně pětina
+5. Ani jeden štítek není *ground truth*. Podle modelu skupiny může přibližně pětina
    abortivních drah legitimně nést dynamin, a ani dokonalá měření by proto nedala shodu 100 %.
 
 """
@@ -1085,7 +1085,7 @@ operačním bodě dává v~mezích intervalů spolehlivosti stejný výsledek ja
 \\item Posun amplitud mezi SI třídami je prokazatelný, ale malý (tabulka~\\ref{{tab:hl}}).
 \\item Délková závislost vzniká již na úrovni jednotlivých snímků (obrázek~\\ref{{fig:pf}}).
 Usuzujeme, že jde o vlastnost prostředí drah, ne o selhání binomické korekce.
-\\item Ani jedna štítek není \\emph{{ground truth}}. Podle modelu skupiny může přibližně pětina
+\\item Ani jeden štítek není \\emph{{ground truth}}. Podle modelu skupiny může přibližně pětina
 abortivních drah legitimně nést dynamin, a ani dokonalá měření by proto nedala shodu 100\\,\\%.
 \\end{{enumerate}}
 
