@@ -116,14 +116,14 @@ Datum {meta['date']} · CMEpython {meta['git']} · vygenerováno `scripts/report
 ## 1. Co je předmětem dokumentu
 
 Popisujeme a interpretujeme původní (referenční) analýzu, ve které se logistická regrese učí
-predikovat SI nálepku dráhy z průběhu dynaminové intenzity. Nejprve vysvětlíme, na čem přesně
+predikovat SI štítek dráhy z průběhu dynaminové intenzity. Nejprve vysvětlíme, na čem přesně
 se trénovalo a co se děje na pozadí. Následně shrneme výsledky a jejich čtení. Naše opakování
 téhož experimentu s intenzitou z cmeAnalysis zde záměrně neřešíme; je v samostatném protokolu.
 
 ## 2. Data a readout
 
 Trénovalo se na korpusu 15 filmů U2OS (2 s/snímek, 79,1 nm/px). Každá dráha klatrinové jamky
-nese nálepku: *produktivní* ⟺ max SI přes život > 0,7. Dynaminová intenzita dráhy je tzv.
+nese štítek: *produktivní* ⟺ max SI přes život > 0,7. Dynaminová intenzita dráhy je tzv.
 *box-mean* readout, a to průměr 5×5 pixelů dynaminového kanálu na pozici jamky v každém
 snímku, vydělený biexponenciálním fitem průměrů snímků dané buňky. Slovem *readout*
 (odečet) obecně označujeme způsob, jakým se z obrazu získá číslo „kolik dynaminu je na
@@ -165,7 +165,7 @@ u krátkých drah; to je známý strukturální únik.
 Postup je pro každou konfiguraci stejný; projděme ho krok za krokem.
 
 **Vstupní tabulka.** Představme si tabulku: jeden řádek je jedna dráha, 27 sloupců jsou
-čísla z části 3 a vedle nich stojí nálepka produktivní/abortivní. Nic jiného model nevidí;
+čísla z části 3 a vedle nich stojí štítek produktivní/abortivní. Nic jiného model nevidí;
 neví, ze kterého filmu dráha pochází, a délku dráhy dostává jen nepřímo.
 
 **Srovnání měřítek (standardizace).** Sloupce mají různé jednotky a rozsahy; průměrný
@@ -176,7 +176,7 @@ podíl, nebo počet. Případné chybějící hodnoty se předtím doplní medi�
 
 **Model.** Logistická regrese je vážený součet. Každé z 27 čísel vynásobí svou vahou,
 výsledky sečte a součet převede na pravděpodobnost mezi 0 a 1, že dráha je produktivní.
-Trénink hledá váhy, se kterými tyto pravděpodobnosti nejlépe sedí na skutečné nálepky.
+Trénink hledá váhy, se kterými tyto pravděpodobnosti nejlépe sedí na skutečné štítky.
 Mírná regularizace (L2, C = 1) drží váhy malé, aby model nesázel příliš na jednotlivé
 sloupce.
 
@@ -194,11 +194,11 @@ hodnotí (*in-sample*); sens a spec jsou proto mírně přikrášlené. AUC žá
 nepotřebuje, a přikrášlená tedy není.
 
 **Kontroly.** Vedle modelu běží permutovaný null: tytéž featury, ale náhodně zamíchané
-nálepky. Musí vyjít u 0,5; kdyby ne, je v postupu únik. A netrénovaná skóre (výška peaku,
+štítky. Musí vyjít u 0,5; kdyby ne, je v postupu únik. A netrénovaná skóre (výška peaku,
 peak − vlastní baseline) říkají, co zvládne jedno číslo bez jakéhokoli učení.
 
 **Délkově očištěné čtení (within-band).** Poolovaná AUC porovnává i krátkou dráhu
-s dlouhou; protože obě nálepky s délkou rostou, část výkonu je jen délka. *Within-band*
+s dlouhou; protože oba štítky s délkou rostou, část výkonu je jen délka. *Within-band*
 AUC proto porovnává pouze dvojice drah podobné délky (12 kvantilových strat, vážení počtem
 porovnatelných párů) a odpovídá na otázku: vyberme náhodně produktivní a abortivní dráhu
 stejné délky; jak často je model seřadí správně? Rozdíl pooled − within-band (gap) říká,
@@ -230,19 +230,19 @@ z lepšího modelu.
 
 ## 6. Interpretace a meze
 
-**Co čísla říkají.** Dynaminový průběh nese informaci o SI nálepce nad rámec délky dráhy,
+**Co čísla říkají.** Dynaminový průběh nese informaci o SI štítku nad rámec délky dráhy,
 avšak malou: dvě náhodně vybrané dráhy stejné délky, jedna produktivní a jedna abortivní,
 seřadí model správně asi v 58 % případů (proti 50 % náhody). Sens {cz(prim['sens'], 2)}
 a spec {cz(prim['spec'], 2)} u Youdenova prahu popisují tentýž slabý signál v řeči
 confusion matice a kvůli in-sample volbě prahu jsou mírně optimistické.
 
 **Co čísla neříkají.** Nejde o měřítko kvality SI ani o dynaminovou referenci pro článek.
-Model je trénovaný na SI nálepkách; kdyby se jím SI ověřoval, byl by to kruh. Je to interní
+Model je trénovaný na SI štítcích; kdyby se jím SI ověřoval, byl by to kruh. Je to interní
 diagnostika, kolik délkově nezávislé informace readout nese. Poolovaná AUC
 ({cz(prim['auc'], 2)}) se nemá číst jako výkon detektoru; obsahuje +{cz(prim['gap'], 2)}
 příspěvku délky.
 
-**Proč je signál tak malý.** Tři důvody se sčítají. Obě nálepky vznikají operátorem „stalo
+**Proč je signál tak malý.** Tři důvody se sčítají. Oba štítky vznikají operátorem „stalo
 se to někdy za život", a proto je délka dominantním společným faktorem. Dynamin je na
 membráně i difuzně a box-mean jej sbírá včetně okolí, takže část signálu je kontext, ne
 jamka. A reference sama je nedokonalá; podle modelu skupiny může přibližně pětina
@@ -318,13 +318,13 @@ def build_tex(rows, meta):
 
 \\section*{{1\\; Co je předmětem dokumentu}}
 Popisujeme a interpretujeme původní (referenční) analýzu, ve které se logistická regrese učí
-predikovat SI nálepku dráhy z~průběhu dynaminové intenzity. Nejprve vysvětlíme, na čem přesně
+predikovat SI štítek dráhy z~průběhu dynaminové intenzity. Nejprve vysvětlíme, na čem přesně
 se trénovalo a co se děje na pozadí. Následně shrneme výsledky a jejich čtení. Naše opakování
 téhož experimentu s~intenzitou z~cmeAnalysis zde záměrně neřešíme; je v~samostatném protokolu.
 
 \\section*{{2\\; Data a readout}}
 Trénovalo se na korpusu 15 filmů U2OS (2\\,s/snímek, 79{{,}}1\\,nm/px). Každá dráha klatrinové
-jamky nese nálepku: \\emph{{produktivní}} $\\Leftrightarrow$ max SI přes život $>$ 0{{,}}7.
+jamky nese štítek: \\emph{{produktivní}} $\\Leftrightarrow$ max SI přes život $>$ 0{{,}}7.
 Dynaminová intenzita dráhy je tzv. \\emph{{box-mean}} readout, a to průměr 5$\\times$5 pixelů
 dynaminového kanálu na pozici jamky v~každém snímku, vydělený biexponenciálním fitem průměrů
 snímků dané buňky. Slovem \\emph{{readout}} (odečet) obecně označujeme způsob, jakým se
@@ -365,7 +365,7 @@ nulové featury střední fáze u~krátkých drah; to je známý strukturální 
 Postup je pro každou konfiguraci stejný; projděme ho krok za krokem.
 \\par
 \\textbf{{Vstupní tabulka.}} Představme si tabulku: jeden řádek je jedna dráha, 27 sloupců
-jsou čísla z~části~3 a vedle nich stojí nálepka produktivní/abortivní. Nic jiného model
+jsou čísla z~části~3 a vedle nich stojí štítek produktivní/abortivní. Nic jiného model
 nevidí; neví, ze kterého filmu dráha pochází, a délku dráhy dostává jen nepřímo.
 \\par
 \\textbf{{Srovnání měřítek (standardizace).}} Sloupce mají různé jednotky a rozsahy;
@@ -378,7 +378,7 @@ sloupce.
 \\textbf{{Model.}} Logistická regrese je vážený součet. Každé z~27 čísel vynásobí svou
 vahou, výsledky sečte a součet převede na pravděpodobnost mezi 0 a 1, že dráha je
 produktivní. Trénink hledá váhy, se kterými tyto pravděpodobnosti nejlépe sedí na skutečné
-nálepky. Mírná regularizace (L2, C = 1) drží váhy malé, aby model nesázel příliš na
+štítky. Mírná regularizace (L2, C = 1) drží váhy malé, aby model nesázel příliš na
 jednotlivé sloupce.
 \\par
 \\textbf{{Poctivé vyhodnocení (out-of-fold).}} Kdyby se model hodnotil na drahách, na
@@ -395,12 +395,12 @@ hodnotí (\\emph{{in-sample}}); sens a spec jsou proto mírně přikrášlené. 
 nepotřebuje, a přikrášlená tedy není.
 \\par
 \\textbf{{Kontroly.}} Vedle modelu běží permutovaný null: tytéž featury, ale náhodně
-zamíchané nálepky. Musí vyjít u~0{{,}}5; kdyby ne, je v~postupu únik. A netrénovaná skóre
+zamíchané štítky. Musí vyjít u~0{{,}}5; kdyby ne, je v~postupu únik. A netrénovaná skóre
 (výška peaku, peak $-$ vlastní baseline) říkají, co zvládne jedno číslo bez jakéhokoli
 učení.
 \\par
 \\textbf{{Délkově očištěné čtení (within-band).}} Poolovaná AUC porovnává i krátkou dráhu
-s~dlouhou; protože obě nálepky s~délkou rostou, část výkonu je jen délka.
+s~dlouhou; protože oba štítky s~délkou rostou, část výkonu je jen délka.
 \\emph{{Within-band}} AUC proto porovnává pouze dvojice drah podobné délky (12 kvantilových
 strat, vážení počtem porovnatelných párů) a odpovídá na otázku: vyberme náhodně produktivní
 a abortivní dráhu stejné délky; jak často je model seřadí správně? Rozdíl pooled $-$
@@ -422,19 +422,19 @@ end-observed korpus dává vyšší čísla než interior; rozdíl jde z~přidan
 začátkem (delší a jasnější), ne z~lepšího modelu.
 
 \\section*{{6\\; Interpretace a meze}}
-\\textbf{{Co čísla říkají.}} Dynaminový průběh nese informaci o~SI nálepce nad rámec délky
+\\textbf{{Co čísla říkají.}} Dynaminový průběh nese informaci o~SI štítku nad rámec délky
 dráhy, avšak malou: dvě náhodně vybrané dráhy stejné délky, jedna produktivní a jedna
 abortivní, seřadí model správně asi v~58\\,\\% případů (proti 50\\,\\% náhody). Sens
 {cz(prim['sens'], 2)} a spec {cz(prim['spec'], 2)} u~Youdenova prahu popisují tentýž slabý
 signál v~řeči confusion matice a kvůli in-sample volbě prahu jsou mírně optimistické.
 \\par
 \\textbf{{Co čísla neříkají.}} Nejde o~měřítko kvality SI ani o~dynaminovou referenci pro
-článek. Model je trénovaný na SI nálepkách; kdyby se jím SI ověřoval, byl by to kruh. Je to
+článek. Model je trénovaný na SI štítcích; kdyby se jím SI ověřoval, byl by to kruh. Je to
 interní diagnostika, kolik délkově nezávislé informace readout nese. Poolovaná AUC
 ({cz(prim['auc'], 2)}) se nemá číst jako výkon detektoru; obsahuje +{cz(prim['gap'], 2)}
 příspěvku délky.
 \\par
-\\textbf{{Proč je signál tak malý.}} Tři důvody se sčítají. Obě nálepky vznikají operátorem
+\\textbf{{Proč je signál tak malý.}} Tři důvody se sčítají. Oba štítky vznikají operátorem
 ,,stalo se to někdy za život``, a proto je délka dominantním společným faktorem. Dynamin je
 na membráně i difuzně a box-mean jej sbírá včetně okolí, takže část signálu je kontext, ne
 jamka. A reference sama je nedokonalá; podle modelu skupiny může přibližně pětina

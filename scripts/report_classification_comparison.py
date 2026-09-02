@@ -629,10 +629,10 @@ Datum {meta['date']} · CMEpython {meta['git']} · vygenerováno `scripts/report
 
 ## 1. Co se porovnává a proč
 
-Každé dráze klatrinové jamky přiřadíme dvě nezávislé nálepky a změříme, jak moc se shodují.
+Každé dráze klatrinové jamky přiřadíme dva nezávislé štítky a změříme, jak moc se shodují.
 
-Nejprve nálepku tvarovou. Dráhu nazveme *produktivní*, pokud její Shape Index někdy za život
-překročí {cz(args.si_threshold, 1)}. Dále nálepku dynaminovou podle pravidla cmeAnalysis
+Nejprve štítek tvarový. Dráhu nazveme *produktivní*, pokud její Shape Index někdy za život
+překročí {cz(args.si_threshold, 1)}. Dále štítek dynaminový podle pravidla cmeAnalysis
 s výchozími parametry. V každém snímku nafitujeme na pozici jamky skvrnku tvaru PSF
 ({meta['sigma_note']}) a získáme amplitudu nad lokálním pozadím. Dráhu označíme za
 *dynamin-pozitivní*, když počet snímků s amplitudou významně nad 95. percentilem pozadí filmu
@@ -644,7 +644,7 @@ a {fmt_n(M['n'])} dodanými drahami. Dráhy jsou předfiltrované již od dodava
 přes 5 snímků, polohu uvnitř masky a úplnost v záznamu. Žádný další délkový filtr
 neaplikujeme. Pozadí filmů pro klasifikaci počítáme s opravenými buněčnými maskami
 („masks fixed"; původní masky byly poškozené interpolací při uložení, překryv
-s opravenými je podle filmu 0,89 až 0,97). Poznamenejme, že ani jedna nálepka není
+s opravenými je podle filmu 0,89 až 0,97). Poznamenejme, že ani jeden štítek není
 *ground truth* (skutečný stav).
 Měříme tedy shodu dvou nedokonalých měření, ne správnost jednoho z nich.
 
@@ -656,14 +656,14 @@ Měříme tedy shodu dvou nedokonalých měření, ne správnost jednoho z nich.
 
 **Diskuze:**
 
-Z tabulky 1 plyne, že fit neselhal na žádném snímku a obě nálepky má každá dodaná dráha.
+Z tabulky 1 plyne, že fit neselhal na žádném snímku a oba štítky má každá dodaná dráha.
 Fit totiž selhává jen na okraji obrazu a dodané dráhy jsou od okraje odfiltrované.
 Nevzniká tedy žádný dodatečný výběr, který by mohl korelovat s délkou dráhy.
 
 ## 2. Výchozí binární call
 
 Obrázek 1 čteme takto. Sloupce dělí dráhy podle SI na abortivní a produktivní. Řádky je dělí
-podle dynaminové nálepky. Procenta udávají podíl ve sloupci, tedy jakou část abortivních,
+podle dynaminového štítku. Procenta udávají podíl ve sloupci, tedy jakou část abortivních,
 resp. produktivních drah pravidlo označilo za pozitivní. První panel ukazuje všechny dráhy
 dohromady. Další čtyři panely ukazují totéž po délkových pásmech.
 
@@ -677,7 +677,7 @@ odds ratio {cz(M['or_crude'])} se po očištění o délku (Mantel–Haenszel, 1
 
 Z obrázku 1 plyne dvojí. Za prvé, dynamin-pozitivní je většina produktivních drah, avšak
 současně i polovina abortivních. Za druhé, poolovaná matice naznačuje silnější asociaci, než
-jaká platí uvnitř pásem. Obě nálepky totiž vznikají operátorem typu „stalo se to někdy za
+jaká platí uvnitř pásem. Oba štítky totiž vznikají operátorem typu „stalo se to někdy za
 život", a proto rostou s délkou dráhy samy od sebe. Smícháním krátkých a dlouhých drah pak
 vzniká zdánlivá asociace, tzv. Simpsonův jev. Po stratifikaci délkou zbývá odds ratio, jehož
 interval spolehlivosti zahrnuje jedničku, viz popisek obrázku 1.
@@ -689,8 +689,8 @@ operačním bodě v části 6.
 
 ## 3. Metriková tabulka výchozího callu
 
-Tabulka 2 uvádí všechny běžně reportované metriky. Dynaminovou nálepku v ní hodnotíme jako
-„prediktor" SI nálepky; jde o konvenci zobrazení. Intervaly spolehlivosti počítáme
+Tabulka 2 uvádí všechny běžně reportované metriky. Dynaminový štítek v ní hodnotíme jako
+„prediktor" SI štítku; jde o konvenci zobrazení. Intervaly spolehlivosti počítáme
 bootstrapem ({args.n_boot} tahů), ve kterém resamplujeme celé filmy. Dráhy stejného filmu
 totiž nejsou nezávislé.
 
@@ -703,7 +703,7 @@ totiž nejsou nezávislé.
 Z tabulky 2 plyne trojí. Za prvé, shoda nad rámec náhody je nízká (Cohenovo κ). Za druhé,
 *within-band* AUC, tedy AUC počítaná jen mezi drahami podobné délky, klesá téměř k 0,5.
 Rozdíl mezi poolovanou a *within-band* hodnotou říká, kolik zdánlivé shody dodávala délka.
-Za třetí, samotná délka dráhy predikuje dynaminovou nálepku lépe než nálepku SI. Dynaminové
+Za třetí, samotná délka dráhy predikuje dynaminový štítek lépe než štítek SI. Dynaminové
 pravidlo je tedy délkou tažené více než SI, které má ověřovat.
 
 ## 4. Závislost na délce dráhy
@@ -826,7 +826,7 @@ citlivosti. Současně z toho plyne, že binární call nemá použitelný rozsa
 3. Posun amplitud mezi SI třídami je prokazatelný, ale malý (tabulka 5).
 4. Délková závislost vzniká již na úrovni jednotlivých snímků (obrázek 3). Usuzujeme, že jde
    o vlastnost prostředí drah, ne o selhání binomické korekce.
-5. Ani jedna nálepka není *ground truth*. Podle modelu skupiny může přibližně pětina
+5. Ani jedna štítek není *ground truth*. Podle modelu skupiny může přibližně pětina
    abortivních drah legitimně nést dynamin, a ani dokonalá měření by proto nedala shodu 100 %.
 
 """
@@ -953,10 +953,10 @@ def build_tex(M, CI, df, sweep_rows, hl_rows, ve, cov, args, meta):
 \\texttt{{scripts/report\\_classification\\_comparison.py}}}}
 
 \\section*{{1\\; Co se porovnává a proč}}
-Každé dráze klatrinové jamky přiřadíme dvě nezávislé nálepky a změříme, jak moc se shodují.
+Každé dráze klatrinové jamky přiřadíme dva nezávislé štítky a změříme, jak moc se shodují.
 \\par
-Nejprve nálepku tvarovou. Dráhu nazveme \\emph{{produktivní}}, pokud její Shape Index někdy za život
-překročí {cz(args.si_threshold, 1)}. Dále nálepku dynaminovou podle pravidla cmeAnalysis s~výchozími
+Nejprve štítek tvarový. Dráhu nazveme \\emph{{produktivní}}, pokud její Shape Index někdy za život
+překročí {cz(args.si_threshold, 1)}. Dále štítek dynaminový podle pravidla cmeAnalysis s~výchozími
 parametry. V~každém snímku nafitujeme na pozici jamky skvrnku tvaru PSF ({e(meta['sigma_note'])})
 a získáme amplitudu nad lokálním pozadím. Dráhu označíme za \\emph{{dynamin-pozitivní}}, když počet
 snímků s~amplitudou významně nad 95.~percentilem pozadí filmu překročí binomický práh odpovídající
@@ -967,20 +967,20 @@ a {e(fmt_n(M['n']))} dodanými drahami. Dráhy jsou předfiltrované již od dod
 přes 5 snímků, polohu uvnitř masky a úplnost v~záznamu. Žádný další délkový filtr neaplikujeme.
 Pozadí filmů pro klasifikaci počítáme s~opravenými buněčnými maskami (,,masks fixed``; původní
 masky byly poškozené interpolací při uložení, překryv s~opravenými je podle filmu 0{{,}}89 až
-0{{,}}97). Poznamenejme, že ani jedna nálepka není \\emph{{ground truth}} (skutečný stav).
+0{{,}}97). Poznamenejme, že ani jeden štítek není \\emph{{ground truth}} (skutečný stav).
 Měříme tedy shodu dvou nedokonalých měření, ne správnost jednoho z~nich.
 
 \\subsection*{{Pokrytí}}
 {t_cov}
 \\textbf{{Diskuze:}}
 
-Z~tabulky~\\ref{{tab:cov}} plyne, že fit neselhal na žádném snímku a obě nálepky má každá dodaná
+Z~tabulky~\\ref{{tab:cov}} plyne, že fit neselhal na žádném snímku a oba štítky má každá dodaná
 dráha. Fit totiž selhává jen na okraji obrazu a dodané dráhy jsou od okraje odfiltrované.
 Nevzniká tedy žádný dodatečný výběr, který by mohl korelovat s~délkou dráhy.
 
 \\section*{{2\\; Výchozí binární call}}
 Obrázek~\\ref{{fig:mosaic}} čteme takto. Sloupce dělí dráhy podle SI na abortivní a produktivní.
-Řádky je dělí podle dynaminové nálepky. Procenta udávají podíl ve sloupci, tedy jakou část
+Řádky je dělí podle dynaminového štítku. Procenta udávají podíl ve sloupci, tedy jakou část
 abortivních, resp. produktivních drah pravidlo označilo za pozitivní. První panel ukazuje všechny
 dráhy dohromady. Další čtyři panely ukazují totéž po délkových pásmech.
 {f_mosaic}
@@ -988,7 +988,7 @@ dráhy dohromady. Další čtyři panely ukazují totéž po délkových pásmec
 
 Z~obrázku~\\ref{{fig:mosaic}} plyne dvojí. Za prvé, dynamin-pozitivní je většina produktivních
 drah, avšak současně i polovina abortivních. Za druhé, poolovaná matice naznačuje silnější
-asociaci, než jaká platí uvnitř pásem. Obě nálepky totiž vznikají operátorem typu ,,stalo se to
+asociaci, než jaká platí uvnitř pásem. Oba štítky totiž vznikají operátorem typu ,,stalo se to
 někdy za život``, a proto rostou s~délkou dráhy samy od sebe. Smícháním krátkých a dlouhých drah
 pak vzniká zdánlivá asociace, tzv. Simpsonův jev. Po stratifikaci délkou zbývá odds ratio, jehož
 interval spolehlivosti zahrnuje jedničku, viz popisek obrázku~\\ref{{fig:mosaic}}.
@@ -999,8 +999,8 @@ jen desetinu. Přímé srovnání $\\kappa$ mezi oběma pravidly by proto nebylo
 až na stejném operačním bodě v~části~6.
 
 \\section*{{3\\; Metriková tabulka výchozího callu}}
-Tabulka~\\ref{{tab:met}} uvádí všechny běžně reportované metriky. Dynaminovou nálepku v~ní
-hodnotíme jako ,,prediktor`` SI nálepky; jde o konvenci zobrazení. Intervaly spolehlivosti
+Tabulka~\\ref{{tab:met}} uvádí všechny běžně reportované metriky. Dynaminový štítek v~ní
+hodnotíme jako ,,prediktor`` SI štítku; jde o konvenci zobrazení. Intervaly spolehlivosti
 počítáme bootstrapem ({args.n_boot} tahů), ve kterém resamplujeme celé filmy. Dráhy stejného filmu
 totiž nejsou nezávislé.
 {t_met}
@@ -1009,7 +1009,7 @@ totiž nejsou nezávislé.
 Z~tabulky~\\ref{{tab:met}} plyne trojí. Za prvé, shoda nad rámec náhody je nízká (Cohenovo
 $\\kappa$). Za druhé, \\emph{{within-band}} AUC, tedy AUC počítaná jen mezi drahami podobné délky,
 klesá téměř k~0{{,}}5. Rozdíl mezi poolovanou a \\emph{{within-band}} hodnotou říká, kolik zdánlivé
-shody dodávala délka. Za třetí, samotná délka dráhy predikuje dynaminovou nálepku lépe než nálepku
+shody dodávala délka. Za třetí, samotná délka dráhy predikuje dynaminový štítek lépe než štítek
 SI. Dynaminové pravidlo je tedy délkou tažené více než SI, které má ověřovat.
 
 \\section*{{4\\; Závislost na délce dráhy}}
@@ -1085,7 +1085,7 @@ operačním bodě dává v~mezích intervalů spolehlivosti stejný výsledek ja
 \\item Posun amplitud mezi SI třídami je prokazatelný, ale malý (tabulka~\\ref{{tab:hl}}).
 \\item Délková závislost vzniká již na úrovni jednotlivých snímků (obrázek~\\ref{{fig:pf}}).
 Usuzujeme, že jde o vlastnost prostředí drah, ne o selhání binomické korekce.
-\\item Ani jedna nálepka není \\emph{{ground truth}}. Podle modelu skupiny může přibližně pětina
+\\item Ani jedna štítek není \\emph{{ground truth}}. Podle modelu skupiny může přibližně pětina
 abortivních drah legitimně nést dynamin, a ani dokonalá měření by proto nedala shodu 100\\,\\%.
 \\end{{enumerate}}
 

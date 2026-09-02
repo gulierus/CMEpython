@@ -298,7 +298,7 @@ shodné; korelace skóre s délkou dráhy je shodná u všech tří readoutů.*
 
 Tabulku 2 čteme takto. Pro každý model uvádíme dvojici čísel na každý readout. *Pooled* AUC
 hodnotí všechny dráhy dohromady. *Within-band* AUC porovnává jen dráhy podobné délky, a je
-tedy očištěná o délkový efekt. Poslední řádek je kontrola se zamíchanými nálepkami, která
+tedy očištěná o délkový efekt. Poslední řádek je kontrola se zamíchanými štítky, která
 musí vyjít u 0,5.
 
 {t_main}
@@ -342,7 +342,7 @@ AUC nad úroveň, kterou známe z *box-mean* readoutu.
 ## 4. Confusion matice s Youdenovým prahem
 
 Obrázek 3 čteme takto. Řádky mřížky jsou readouty a korpusy, sloupce modely; poslední
-sloupec je kontrola s permutovanými nálepkami. V každé buňce je matice 2×2, a to řádky
+sloupec je kontrola s permutovanými štítky. V každé buňce je matice 2×2, a to řádky
 skutečná SI třída (abortivní, produktivní) a sloupce predikce modelu; procenta jsou podíl
 v řádku. Pod maticí uvádíme AUC, Youdenův práh, sensitivitu, specificitu, within-band AUC
 a gap. Řádky s *box-mean* jsou původní referenční běh; jeho korpus „end-observed" navíc
@@ -409,7 +409,7 @@ vrcholu, nejdelší běh významných snímků). Když tedy dále píšeme, že 
 a střední fáze", neznamená to jednotlivé rané snímky; znamená to právě tato souhrnná čísla.
 
 Pro každé délkové pásmo zvlášť se na drahách pásma natrénuje logistická regrese predikující
-SI nálepku z těchto vstupů. Vstupy se před fitem standardizují, tedy od každého se odečte
+SI štítek z těchto vstupů. Vstupy se před fitem standardizují, tedy od každého se odečte
 průměr a vydělí se směrodatnou odchylkou. Koeficient pak má jednotný a čitelný význam:
 o kolik se změní logaritmus šance „být produktivní", když se daný vstup zvedne o jednu
 směrodatnou odchylku a ostatní se drží. Příklad: koeficient +0,44 u průměru amplitudy před
@@ -442,12 +442,12 @@ což opět potvrzuje, že volba normalizace nehraje roli.
 ## 7. Shrnutí
 
 1. Experiment jsme zopakovali beze změny převzatého kódu, pouze s naší intenzitou;
-   obě varianty korpusu doběhly čistě a kontrola s permutovanými nálepkami sedí na 0,5.
+   obě varianty korpusu doběhly čistě a kontrola s permutovanými štítky sedí na 0,5.
 2. Surová a normalizovaná amplituda dávají stejné výsledky; volba normalizace nehraje roli.
 3. Amplituda cmeAnalysis nepřekonala *box-mean*; rozdíly jsou v setinách a pod mezifilmovým
    rozptylem (tabulka 2). Kvalita měření tedy nebyla úzkým hrdlem.
 4. Délkový efekt zůstává beze změny u všech readoutů (ρ ≈ 0,87; gap ≈ 0,15 až 0,18).
-   Strop výsledků drží délkový confounding a vlastnosti nálepek, ne měření.
+   Strop výsledků drží délkový confounding a vlastnosti štítků, ne měření.
 5. Mřížka s Youdenovými prahy (obrázek 3) slouží jako diagnostika readoutů; konfiguraci
    podle shody se SI nevybíráme. Mediánové průběhy (obrázek 4) mají v obou SI třídách
    téměř shodný tvar (vrchol několik sekund před koncem); produktivní dráhy leží výš
@@ -590,7 +590,7 @@ skóre fitovaných modelů jen v~posledních desetinných místech.
 Tabulku~\\ref{{tab:main}} čteme takto. Pro každý model uvádíme dvojici čísel na každý
 readout. \\emph{{Pooled}} AUC hodnotí všechny dráhy dohromady. \\emph{{Within-band}} AUC
 porovnává jen dráhy podobné délky, a je tedy očištěná o délkový efekt. Poslední řádek je
-kontrola se zamíchanými nálepkami, která musí vyjít u~0{{,}}5.
+kontrola se zamíchanými štítky, která musí vyjít u~0{{,}}5.
 {t_main}
 {f1}
 {f2}
@@ -616,7 +616,7 @@ Závěr z~části~2 platí ve všech konfiguracích. Žádná kombinace filtrů 
 
 \\section*{{4\\; Confusion matice s Youdenovým prahem}}
 Obrázek~\\ref{{fig:grid}} čteme takto. Řádky mřížky jsou readouty a korpusy, sloupce modely;
-poslední sloupec je kontrola s~permutovanými nálepkami. V~každé buňce je matice 2$\\times$2,
+poslední sloupec je kontrola s~permutovanými štítky. V~každé buňce je matice 2$\\times$2,
 a to řádky skutečná SI třída (abortivní, produktivní) a sloupce predikce modelu; procenta
 jsou podíl v~řádku. Pod maticí uvádíme AUC, Youdenův práh, sensitivitu, specificitu,
 \\emph{{within-band}} AUC a gap. Řádky s~\\emph{{box-mean}} jsou původní referenční běh; jeho
@@ -664,7 +664,7 @@ vrcholu, nejdelší běh významných snímků). Když tedy dále píšeme, že 
 a střední fáze``, neznamená to jednotlivé rané snímky; znamená to právě tato souhrnná čísla.
 \\par
 Pro každé délkové pásmo zvlášť se na drahách pásma natrénuje logistická regrese predikující
-SI nálepku z~těchto vstupů. Vstupy se před fitem standardizují, tedy od každého se odečte
+SI štítek z~těchto vstupů. Vstupy se před fitem standardizují, tedy od každého se odečte
 průměr a vydělí se směrodatnou odchylkou. Koeficient pak má jednotný a čitelný význam:
 o~kolik se změní logaritmus šance ,,být produktivní``, když se daný vstup zvedne o~jednu
 směrodatnou odchylku a ostatní se drží. Příklad: koeficient +0{{,}}44 u~průměru amplitudy
@@ -696,13 +696,13 @@ volba normalizace nehraje roli.
 \\section*{{7\\; Shrnutí}}
 \\begin{{enumerate}}
 \\item Experiment jsme zopakovali beze změny převzatého kódu, pouze s~naší intenzitou; obě
-varianty korpusu doběhly čistě a kontrola s~permutovanými nálepkami sedí na 0{{,}}5.
+varianty korpusu doběhly čistě a kontrola s~permutovanými štítky sedí na 0{{,}}5.
 \\item Surová a normalizovaná amplituda dávají stejné výsledky; volba normalizace nehraje roli.
 \\item Amplituda cmeAnalysis nepřekonala \\emph{{box-mean}}; rozdíly jsou v~setinách a pod
 mezifilmovým rozptylem (tabulka~\\ref{{tab:main}}). Kvalita měření tedy nebyla úzkým hrdlem.
 \\item Délkový efekt zůstává beze změny u~všech readoutů ($\\rho \\approx 0{{,}}87$; rozdíl
 pooled a within-band $\\approx$ 0{{,}}15 až 0{{,}}18). Strop výsledků drží délkový
-confounding a vlastnosti nálepek, ne měření.
+confounding a vlastnosti štítků, ne měření.
 \\item Mřížka s~Youdenovými prahy (obrázek~\\ref{{fig:grid}}) slouží jako diagnostika
 readoutů; konfiguraci podle shody se SI nevybíráme. Mediánové průběhy
 (obrázek~\\ref{{fig:prof}}) mají v~obou SI třídách téměř shodný tvar (vrchol několik sekund
