@@ -139,6 +139,34 @@ def fig_coefs(coefs_json, out):
     fig.tight_layout(); fig.savefig(out, dpi=160); plt.close(fig)
 
 
+def fig_sigmoid(coefs_json, out):
+    """Klasicky pohled: sigmoida P(produktivni) podel nejsilnejsiho vstupu
+    (prumer pred oknem), ostatni vstupy drzene na prumeru (0 SD)."""
+    with open(coefs_json, encoding="utf-8") as fh:
+        d = json.load(fh)
+    names = d["_meta"]["features"]
+    k = names.index("mid_mean")
+    bands = d["configs"]["none_interior"]["bands"]
+    cmap = plt.get_cmap("viridis")
+    cols = [cmap(0.1 + 0.8 * i / max(len(bands) - 1, 1)) for i in range(len(bands))]
+    x = np.linspace(-2.0, 3.0, 200)
+    fig, ax = plt.subplots(figsize=(6.6, 4.4))
+    for blk, col in zip(bands, cols):
+        b0 = float(blk["intercept"])
+        beta = float(np.asarray(blk["coef"], float)[k])
+        p = 1.0 / (1.0 + np.exp(-(b0 + beta * x)))
+        ax.plot(x, p, color=col, lw=1.8, label=f"{blk['band']} snímků")
+        prev = blk["n_productive"] / blk["n"]
+        ax.axhline(prev, color=col, lw=0.7, ls=":", alpha=0.6)
+    ax.axvline(0, color="0.6", lw=0.8, ls=":")
+    ax.set_xlabel("průměr amplitudy před oknem [směrodatné odchylky od průměru]")
+    ax.set_ylabel("P(produktivní)")
+    ax.set_ylim(0, 1)
+    ax.set_title("Model podél nejsilnějšího vstupu; ostatní vstupy na průměru", fontsize=10.5)
+    ax.legend(fontsize=8, title="délkové pásmo", title_fontsize=8)
+    fig.tight_layout(); fig.savefig(out, dpi=160); plt.close(fig)
+
+
 def md_table(rows_data, header):
     head = "| " + " | ".join(header) + " |"
     sep = "|" + "|".join("---" for _ in header) + "|"
@@ -603,8 +631,17 @@ def main() -> int:
                "intervaly bootstrapem po filmech, barvy rozlišují délková pásma; hodnoty "
                "vpravo od nuly táhnou k „produktivní\". Vpravo váhy jednotlivých bodů "
                "terminálního okna s pásy 95% intervalů.")
+        fig_sigmoid(args.coefs_json, os.path.join(args.out, "figL3_logreg_sigmoid.png"))
+        cap3 = ("Klasický pohled na tutéž regresi: pravděpodobnost „produktivní\" podél "
+                "nejsilnějšího vstupu (průměr amplitudy před oknem), ostatní vstupy držené "
+                "na průměru. Plné čáry jsou esovky modelu po délkových pásmech, tečkované "
+                "vodorovné čáry podíl produktivních v pásmu; kde esovka protíná svislou "
+                "tečkovanou čáru (průměrná dráha), model vrací přibližně tento podíl. "
+                "Vícerozměrný model esovku má, jen ji lze kreslit vždy pro jeden vstup.")
         meta["coef_fig_md"] = (f"\n![koeficienty]({'figL2_logreg_coefs.png'})\n\n"
-                               f"*Obrázek 2: {cap}*\n")
+                               f"*Obrázek 2: {cap}*\n"
+                               f"\n![sigmoida]({'figL3_logreg_sigmoid.png'})\n\n"
+                               f"*Obrázek 3: {cap3}*\n")
         meta["coef_fig_tex"] = (
             "\\begin{figure}[H]\\centering"
             "\\includegraphics[width=\\linewidth]{figL2_logreg_coefs.png}"
@@ -612,7 +649,16 @@ def main() -> int:
             "filtru, interior; referenční běh váhy neukládá). Vlevo souhrnné vstupy s~95\\,\\% "
             "intervaly bootstrapem po filmech, barvy rozlišují délková pásma; hodnoty vpravo "
             "od nuly táhnou k~,,produktivní``. Vpravo váhy jednotlivých bodů terminálního "
-            "okna s~pásy 95\\,\\% intervalů.}\\label{fig:coef}\\end{figure}\n\\par")
+            "okna s~pásy 95\\,\\% intervalů.}\\label{fig:coef}\\end{figure}\n"
+            "\\begin{figure}[H]\\centering"
+            "\\includegraphics[width=0.72\\linewidth]{figL3_logreg_sigmoid.png}"
+            "\\caption{Klasický pohled na tutéž regresi: pravděpodobnost ,,produktivní`` "
+            "podél nejsilnějšího vstupu (průměr amplitudy před oknem), ostatní vstupy držené "
+            "na průměru. Plné čáry jsou esovky modelu po délkových pásmech, tečkované "
+            "vodorovné čáry podíl produktivních v~pásmu; kde esovka protíná svislou "
+            "tečkovanou čáru (průměrná dráha), model vrací přibližně tento podíl. "
+            "Vícerozměrný model esovku má, jen ji lze kreslit vždy pro jeden vstup.}"
+            "\\label{fig:sig}\\end{figure}\n\\par")
     else:
         print(f"VAROVANI: {args.coefs_json} nenalezen -- obrazek koeficientu vynechan")
     with open(os.path.join(args.out, "interpretace_logreg.md"), "w", encoding="utf-8") as fh:
