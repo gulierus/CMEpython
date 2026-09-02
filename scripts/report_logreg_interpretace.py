@@ -89,6 +89,56 @@ def fig_overview(rows, out):
     fig.tight_layout(); fig.savefig(out, dpi=160); plt.close(fig)
 
 
+SCALAR_LABELS = [
+    ("mid_mean", "průměr před oknem"),
+    ("mid_max", "maximum před oknem"),
+    ("mid_frac_sig", "podíl významných před oknem"),
+    ("mid_to_win_ratio", "poměr maxim před/okno"),
+    ("peak_snr", "maximum přes život"),
+    ("phi_peak", "poloha vrcholu v životě"),
+    ("longest_run", "nejdelší běh významných"),
+]
+
+
+def fig_coefs(coefs_json, out):
+    """Koeficienty rovnocenneho behu (cmeAnalysis amplituda, bez filtru interior):
+    vlevo souhrnne vstupy s 95% CI po pasmech, vpravo profil vah terminalniho okna."""
+    with open(coefs_json, encoding="utf-8") as fh:
+        d = json.load(fh)
+    names = d["_meta"]["features"]
+    bands = d["configs"]["none_interior"]["bands"]
+    band_lbl = [b["band"] for b in bands]
+    cmap = plt.get_cmap("viridis")
+    cols = [cmap(0.1 + 0.8 * i / max(len(bands) - 1, 1)) for i in range(len(bands))]
+
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(11.5, 4.6),
+                                   gridspec_kw={"width_ratios": [1.15, 1]})
+    for bi, (blk, col) in enumerate(zip(bands, cols)):
+        c = np.asarray(blk["coef"], float)
+        lo = np.asarray(blk["boot_lo"], float)
+        hi = np.asarray(blk["boot_hi"], float)
+        for fi, (key, _) in enumerate(SCALAR_LABELS):
+            k = names.index(key)
+            y = fi + (bi - 1.5) * 0.17
+            ax1.errorbar(c[k], y, xerr=[[c[k] - lo[k]], [hi[k] - c[k]]],
+                         fmt="o", ms=3.5, color=col, capsize=2, lw=1)
+        w = [names.index(f"win_{i}") for i in range(10)]
+        t = np.arange(10) * 2.0 - 18.0
+        ax2.fill_between(t, lo[w], hi[w], color=col, alpha=0.15, linewidth=0)
+        ax2.plot(t, c[w], "o-", ms=3, color=col, label=f"{blk['band']} snímků")
+    ax1.axvline(0, color="0.5", lw=1)
+    ax1.set_yticks(range(len(SCALAR_LABELS)), [l for _, l in SCALAR_LABELS], fontsize=9)
+    ax1.invert_yaxis()
+    ax1.set_xlabel("koeficient [log-odds na 1 SD]")
+    ax1.set_title("Souhrnné vstupy", fontsize=10.5)
+    ax2.axhline(0, color="0.5", lw=1)
+    ax2.set_xlabel("čas před koncem dráhy [s]")
+    ax2.set_ylabel("koeficient [log-odds na 1 SD]")
+    ax2.set_title("Váhy bodů terminálního okna", fontsize=10.5)
+    ax2.legend(fontsize=8, title="délkové pásmo", title_fontsize=8)
+    fig.tight_layout(); fig.savefig(out, dpi=160); plt.close(fig)
+
+
 def md_table(rows_data, header):
     head = "| " + " | ".join(header) + " |"
     sep = "|" + "|".join("---" for _ in header) + "|"
@@ -247,7 +297,7 @@ intervaly bootstrapem po filmech) ukazují jednoznačný vzor. Nejsilnější a 
 je průměr amplitudy přes část života před terminálním oknem; v pásmu 10–19 snímků jeho
 maximum. Váhy jednotlivých bodů terminálního okna jsou malé a většinou s intervalem přes
 nulu.
-
+{meta['coef_fig_md']}
 **Diskuze:**
 
 Dá se říct, že regrese rozpoznává produktivní dráhy podle trvale vyššího dynaminu během
@@ -470,7 +520,7 @@ intervaly bootstrapem po filmech) ukazují jednoznačný vzor. Nejsilnější a 
 je průměr amplitudy přes část života před terminálním oknem; v~pásmu 10--19 snímků jeho
 maximum. Váhy jednotlivých bodů terminálního okna jsou malé a většinou s~intervalem přes
 nulu.
-\\par
+{meta['coef_fig_tex']}
 \\textbf{{Diskuze:}}
 
 Dá se říct, že regrese rozpoznává produktivní dráhy podle trvale vyššího dynaminu během
@@ -527,6 +577,8 @@ def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--sweep-json", default=os.path.join(
         ROOT, "external", "Shape2Fate_Fake2Emulate", "dynamin_v2_confusion_sweep.json"))
+    ap.add_argument("--coefs-json", default=os.path.join(
+        ROOT, "CME_for_Helios", "runs", "raw_238490", "dynamin_v2_logreg_coefs.json"))
     ap.add_argument("--out", default=os.path.join(ROOT, "CME_for_Helios", "report"))
     ap.add_argument("--skip-pdf", action="store_true")
     args = ap.parse_args()
@@ -543,6 +595,26 @@ def main() -> int:
             "git": subprocess.run(["git", "-C", ROOT, "rev-parse", "--short", "HEAD"],
                                   capture_output=True, text=True).stdout.strip() or "?"}
     fig_overview(rows, os.path.join(args.out, "figL1_logreg_overview.png"))
+    meta["coef_fig_md"] = meta["coef_fig_tex"] = ""
+    if os.path.exists(args.coefs_json):
+        fig_coefs(args.coefs_json, os.path.join(args.out, "figL2_logreg_coefs.png"))
+        cap = ("Koeficienty rovnocenného běhu na amplitudě cmeAnalysis (korpus bez filtru, "
+               "interior; referenční běh váhy neukládá). Vlevo souhrnné vstupy s 95% "
+               "intervaly bootstrapem po filmech, barvy rozlišují délková pásma; hodnoty "
+               "vpravo od nuly táhnou k „produktivní\". Vpravo váhy jednotlivých bodů "
+               "terminálního okna s pásy 95% intervalů.")
+        meta["coef_fig_md"] = (f"\n![koeficienty]({'figL2_logreg_coefs.png'})\n\n"
+                               f"*Obrázek 2: {cap}*\n")
+        meta["coef_fig_tex"] = (
+            "\\begin{figure}[H]\\centering"
+            "\\includegraphics[width=\\linewidth]{figL2_logreg_coefs.png}"
+            "\\caption{Koeficienty rovnocenného běhu na amplitudě cmeAnalysis (korpus bez "
+            "filtru, interior; referenční běh váhy neukládá). Vlevo souhrnné vstupy s~95\\,\\% "
+            "intervaly bootstrapem po filmech, barvy rozlišují délková pásma; hodnoty vpravo "
+            "od nuly táhnou k~,,produktivní``. Vpravo váhy jednotlivých bodů terminálního "
+            "okna s~pásy 95\\,\\% intervalů.}\\label{fig:coef}\\end{figure}\n\\par")
+    else:
+        print(f"VAROVANI: {args.coefs_json} nenalezen -- obrazek koeficientu vynechan")
     with open(os.path.join(args.out, "interpretace_logreg.md"), "w", encoding="utf-8") as fh:
         fh.write(build_markdown(rows, meta))
     with open(os.path.join(args.out, "interpretace_logreg.tex"), "w", encoding="utf-8") as fh:
