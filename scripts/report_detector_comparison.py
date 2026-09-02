@@ -397,16 +397,32 @@ populací, ne o oddělitelnost jednotlivých drah, kterou popisuje horní řada.
 
 ## 6. Čeho se model drží: koeficienty logistické regrese
 
-Z dřívějšího běhu na týchž korpusech máme standardizované koeficienty logistické regrese po
-délkových pásmech (soubory `dynamin_v2_logreg_coefs*` v obou runech). Nejsilnější a
-bootstrapově stabilní koeficient v delších pásmech je průměrná amplituda v rané a střední
-fázi života dráhy, kladný. Váhy terminálního okna, tedy posledních 20 s před koncem dráhy,
-jsou malé a většinou nestabilní.
+Vysvětleme nejprve, co je zde spočítáno. Pro každé délkové pásmo zvlášť se na drahách pásma
+natrénuje logistická regrese predikující SI nálepku z 27 featur. Featury se před fitem
+standardizují, tedy od každé se odečte průměr a vydělí se směrodatnou odchylkou. Koeficient
+pak má jednotný a čitelný význam: o kolik se změní logaritmus šance „být produktivní", když
+se daná featura zvedne o jednu směrodatnou odchylku a ostatní se drží. Příklad: koeficient
++0,44 u průměrné amplitudy střední fáze (pásmo 40+) znamená, že dráha s touto amplitudou
+o 1 SD nad průměrem má e^0,44 ≈ 1,55× vyšší šanci být produktivní. Kladné znaménko táhne
+k „produktivní", záporné k „abortivní". Fituje se po pásmech právě proto, aby koeficienty
+nemohly stavět na délce dráhy.
+
+Nejistotu určuje bootstrap po filmech: 200× se s opakováním vylosuje 15 filmů, fit se
+zopakuje a z rozptylu koeficientu vznikne 95% interval. „Stabilní" říkáme koeficientu,
+jehož interval neobsahuje nulu. Soubory `dynamin_v2_logreg_coefs*` v obou runech nesou
+kompletní hodnoty i intervaly.
+
+Výsledek: v pásmech 20–39 a 40+ je nejsilnějším stabilním koeficientem průměrná amplituda
+střední fáze života (kladná, +0,34 až +0,46), v pásmu 10–19 její maximum. Váhy jednotlivých
+bodů terminálního okna, tedy posledních 20 s před koncem dráhy, jsou proti tomu malé
+a většinou s intervalem přes nulu.
 
 **Diskuze:**
 
-Dá se říct, že detektor rozpoznává produktivní dráhy podle trvale vyššího dynaminu během
-života, ne podle výrazné události na konci. To je konzistentní s dřívějším pozorováním, že
+Kdyby produktivní dráhy měly specifický scission podpis na konci života, nesly by signál
+váhy konce okna; nenesou. Dá se tedy říct, že detektor rozpoznává produktivní dráhy podle
+trvale vyššího dynaminu během života, ne podle výrazné události na konci. To je konzistentní
+s mediánovými profily v části 5 i s dřívějším pozorováním, že
 terminální vzestup mají obě třídy. Surová a normalizovaná varianta dávají stejné koeficienty,
 což opět potvrzuje, že volba normalizace nehraje roli.
 
@@ -623,17 +639,33 @@ započítává. Úzké pásy $\\pm$\\,SEM ukazují, že posun průměrů je odha
 o rozdíl průměrů populací, ne o oddělitelnost jednotlivých drah, kterou popisuje horní řada.
 
 \\section*{{6\\; Čeho se model drží: koeficienty logistické regrese}}
-Z~dřívějšího běhu na týchž korpusech máme standardizované koeficienty logistické regrese po
-délkových pásmech. Nejsilnější a bootstrapově stabilní koeficient v~delších pásmech je
-průměrná amplituda v~rané a střední fázi života dráhy, kladný. Váhy terminálního okna, tedy
-posledních 20\\,s před koncem dráhy, jsou malé a většinou nestabilní.
+Vysvětleme nejprve, co je zde spočítáno. Pro každé délkové pásmo zvlášť se na drahách pásma
+natrénuje logistická regrese predikující SI nálepku z~27 featur. Featury se před fitem
+standardizují, tedy od každé se odečte průměr a vydělí se směrodatnou odchylkou. Koeficient
+pak má jednotný a čitelný význam: o~kolik se změní logaritmus šance ,,být produktivní``,
+když se daná featura zvedne o~jednu směrodatnou odchylku a ostatní se drží. Příklad:
+koeficient +0{{,}}44 u~průměrné amplitudy střední fáze (pásmo 40+) znamená, že dráha s~touto
+amplitudou o~1~SD nad průměrem má $e^{{0{{,}}44}} \\approx 1{{,}}55\\times$ vyšší šanci být
+produktivní. Kladné znaménko táhne k~,,produktivní``, záporné k~,,abortivní``. Fituje se po
+pásmech právě proto, aby koeficienty nemohly stavět na délce dráhy.
+\\par
+Nejistotu určuje bootstrap po filmech: 200$\\times$ se s~opakováním vylosuje 15 filmů, fit
+se zopakuje a z~rozptylu koeficientu vznikne 95\\,\\% interval. ,,Stabilní`` říkáme
+koeficientu, jehož interval neobsahuje nulu.
+\\par
+Výsledek: v~pásmech 20--39 a 40+ je nejsilnějším stabilním koeficientem průměrná amplituda
+střední fáze života (kladná, +0{{,}}34 až +0{{,}}46), v~pásmu 10--19 její maximum. Váhy
+jednotlivých bodů terminálního okna, tedy posledních 20\\,s před koncem dráhy, jsou proti
+tomu malé a většinou s~intervalem přes nulu.
 \\par
 \\textbf{{Diskuze:}}
 
-Dá se říct, že detektor rozpoznává produktivní dráhy podle trvale vyššího dynaminu během
-života, ne podle výrazné události na konci. To je konzistentní s~dřívějším pozorováním, že
-terminální vzestup mají obě třídy. Surová a normalizovaná varianta dávají stejné
-koeficienty, což opět potvrzuje, že volba normalizace nehraje roli.
+Kdyby produktivní dráhy měly specifický scission podpis na konci života, nesly by signál
+váhy konce okna; nenesou. Dá se tedy říct, že detektor rozpoznává produktivní dráhy podle
+trvale vyššího dynaminu během života, ne podle výrazné události na konci. To je konzistentní
+s~mediánovými profily v~části~5 i s~dřívějším pozorováním, že terminální vzestup mají obě
+třídy. Surová a normalizovaná varianta dávají stejné koeficienty, což opět potvrzuje, že
+volba normalizace nehraje roli.
 
 \\section*{{7\\; Shrnutí}}
 \\begin{{enumerate}}
