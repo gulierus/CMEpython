@@ -167,6 +167,72 @@ def fig_sigmoid(coefs_json, out):
     fig.tight_layout(); fig.savefig(out, dpi=160); plt.close(fig)
 
 
+def fig_features(out):
+    """Schema vstupu modelu na smyslene draze: okno, stredni faze, prah,
+    vrchol, beh vyznamnych snimku."""
+    dt = 2.0
+    n = 25                                   # 25 snimku = 50 s
+    t = np.arange(n) * dt
+    a = (0.15 + 0.55 * np.exp(-0.5 * ((t - 16) / 6) ** 2)
+         + 1.00 * np.exp(-0.5 * ((t - 36) / 5) ** 2)
+         + 0.05 * np.sin(t / 3.0))
+    thr = 0.45
+    win0 = n - 10                            # poslednich 10 snimku = 20 s
+    fig, ax = plt.subplots(figsize=(9.8, 4.8))
+    ax.axvspan(t[win0] - dt / 2, t[-1] + dt / 2, color="#2b7bba", alpha=0.10)
+    ax.axvspan(t[0] - dt / 2, t[win0] - dt / 2, color="#e07a29", alpha=0.08)
+    ax.plot(t, a, "-", color="0.35", lw=1.2)
+    ax.plot(t[win0:], a[win0:], "o", ms=5, color="#2b7bba")
+    ax.plot(t[:win0], a[:win0], ".", ms=4, color="#e07a29")
+    # prah vyznamnosti
+    ax.axhline(thr, color="0.5", lw=1, ls="--")
+    ax.text(t[0], thr + 0.03, "práh významnosti (q90 korpusu)", fontsize=8, color="0.35")
+    # prumer stredni faze
+    mid_mean = a[:win0].mean()
+    ax.hlines(mid_mean, t[0], t[win0 - 1], color="#b3541e", lw=1.6, ls=":")
+    ax.annotate("průměr před oknem", (t[3], mid_mean), (t[1], mid_mean + 0.22),
+                fontsize=8, color="#b3541e", arrowprops=dict(arrowstyle="->", color="#b3541e", lw=0.8))
+    # maximum stredni faze
+    km = int(np.argmax(a[:win0]))
+    ax.plot(t[km], a[km], "^", ms=9, color="#b3541e")
+    ax.annotate("maximum před oknem", (t[km], a[km]), (t[km] - 12, a[km] + 0.18),
+                fontsize=8, color="#b3541e", arrowprops=dict(arrowstyle="->", color="#b3541e", lw=0.8))
+    # globalni vrchol
+    kp = int(np.argmax(a))
+    ax.plot(t[kp], a[kp], "*", ms=14, color="#7d3c98")
+    ax.annotate("maximum přes život", (t[kp] + 0.5, a[kp] - 0.02), (t[kp] + 5, a[kp] - 0.25),
+                fontsize=8, color="#7d3c98", arrowprops=dict(arrowstyle="->", color="#7d3c98", lw=0.8))
+    ax.annotate("", (t[kp], 0.02), (t[0], 0.02),
+                arrowprops=dict(arrowstyle="->", color="#7d3c98", lw=0.9))
+    ax.text(t[kp] / 2, 0.05, f"poloha vrcholu v životě = {t[kp] / t[-1]:.0%}",
+            fontsize=8, color="#7d3c98", ha="center")
+    # nejdelsi beh vyznamnych
+    sig = a > thr
+    best_len, best_s, cur_s = 0, 0, None
+    for i, v in enumerate(np.append(sig, False)):
+        if v and cur_s is None:
+            cur_s = i
+        if not v and cur_s is not None:
+            if i - cur_s > best_len:
+                best_len, best_s = i - cur_s, cur_s
+            cur_s = None
+    y_br = thr - 0.10
+    ax.annotate("", (t[best_s + best_len - 1], y_br), (t[best_s], y_br),
+                arrowprops=dict(arrowstyle="<->", color="0.3", lw=0.9))
+    ax.text((t[best_s] + t[best_s + best_len - 1]) / 2, y_br - 0.09,
+            "nejdelší běh významných snímků", fontsize=8, color="0.3", ha="center")
+    # popisky pasem
+    ax.text((t[0] + t[win0]) / 2, 1.13, "střední fáze → 3 souhrnná čísla",
+            fontsize=9, color="#b3541e", ha="center")
+    ax.text((t[win0] + t[-1]) / 2, 1.13, "terminální okno → 10 bodů\n(win_0 … win_9)",
+            fontsize=9, color="#2b7bba", ha="center")
+    ax.set_xlabel("čas od vzniku dráhy [s]")
+    ax.set_ylabel("excess dynaminu")
+    ax.set_ylim(-0.05, 1.28)
+    ax.set_title("Vstupy modelu na příkladu jedné dráhy", fontsize=10.5)
+    fig.tight_layout(); fig.savefig(out, dpi=160); plt.close(fig)
+
+
 def md_table(rows_data, header):
     head = "| " + " | ".join(header) + " |"
     sep = "|" + "|".join("---" for _ in header) + "|"
@@ -196,7 +262,7 @@ Datum {meta['date']} · CMEpython {meta['git']} · vygenerováno `scripts/report
 Popisujeme a interpretujeme původní (referenční) analýzu, ve které se logistická regrese učí
 predikovat SI štítek dráhy z průběhu dynaminové intenzity. Nejprve vysvětlíme, na čem přesně
 se trénovalo a co se děje na pozadí. Následně shrneme výsledky a jejich čtení. Naše opakování
-téhož experimentu s intenzitou z cmeAnalysis zde záměrně neřešíme; je v samostatném protokolu.
+téhož experimentu s intenzitou z cmeAnalysis zde záměrně neřešíme. Je v samostatném protokolu.
 
 ## 2. Data a readout
 
@@ -205,14 +271,14 @@ nese štítek: *produktivní* ⟺ max SI přes život > 0,7. Dynaminová intenzi
 *box-mean* readout, a to průměr 5×5 pixelů dynaminového kanálu na pozici jamky v každém
 snímku, vydělený biexponenciálním fitem průměrů snímků dané buňky. Slovem *readout*
 (odečet) obecně označujeme způsob, jakým se z obrazu získá číslo „kolik dynaminu je na
-daném místě v daném snímku"; box-mean je jedna z možností, amplituda PSF fitu
+daném místě v daném snímku". Box-mean je jedna z možností, amplituda PSF fitu
 z cmeAnalysis jiná. Po tomto dělení je 1
 rovna průměru buňky; pracuje se s *excessem* = hodnota − 1, takže 0 znamená „na úrovni
 průměru buňky". Poznamenejme dvě vlastnosti volby. Za prvé, dělení průměrem buňky srovnává
 filmy s různým jasem a odstraňuje blednutí. Za druhé, box-mean sbírá všechen signál v okénku,
-tedy i difuzní membránový dynamin a příspěvky sousedních jamek; lokální pozadí se neodečítá.
-Příklad pro představu: okénko má průměrný jas 1 300 a průměr buňky v tom čase je 1 000;
-hodnota readoutu je 1,3 a excess 0,3, tedy „o 30 % nad průměrem buňky".
+tedy i difuzní membránový dynamin a příspěvky sousedních jamek. Lokální pozadí se neodečítá.
+Příklad pro představu: okénko má průměrný jas 1 300 a průměr buňky v tom čase je 1 000.
+Hodnota readoutu je 1,3 a excess 0,3, tedy „o 30 % nad průměrem buňky".
 
 Korpus se vyhodnocuje v osmi konfiguracích filtrů (tabulka 1): kombinace *cluster* filtru
 (žádný, < 3, < 2), vzdálenostního filtru (2. nejbližší soused ≥ 5 px) a úplnosti dráhy
@@ -221,32 +287,46 @@ Primární korpus analýzy je „bez filtru, end-observed" (n = {fmt_n(prim['n']
 
 ## 3. Na čem přesně se model učí: featury
 
-Z každé dráhy se počítá 27 vstupních čísel; informativních je 17, zbylých 10 (`pre_*`,
-`post_*`) je v tomto korpusu identicky nulových (vzorky před vznikem a po zániku dráhy
-korpus neobsahuje).
+Featura je jedno číslo spočítané z průběhu dráhy. Dohromady jich je 27 a tvoří jeden řádek
+vstupní tabulky. Nejlépe se chápou na příkladu. Obrázek 1 ukazuje smyšlenou dráhu žijící
+50 s. Její život dělíme na dvě části. Posledních 20 s je terminální okno, modrý pás.
+Všechno před tím je střední fáze, oranžový pás.
 
-- **Terminální okno (10):** excess v posledních 20 s života, převzorkovaný v reálném čase na
-  10 bodů; u drah kratších než okno se hodnoty před vznikem drží na první naměřené.
-- **Střední fáze života (4):** průměr a maximum excessu před oknem, podíl „významných"
-  snímků (excess > 90. percentil korpusu) a poměr maxima střední fáze k maximu okna;
-  u drah ≤ 10 snímků jsou nulové.
-- **Globální skaláry (3):** maximum excessu přes celý život, normalizovaná poloha vrcholu
-  v životě a nejdelší souvislý běh významných snímků.
+![featury](figL0_features.png)
 
-Délka dráhy mezi featurami záměrně **není**. Přesto ji modely ze vstupů rekonstruují
-(Spearman ρ skóre–délka {cz(prim['rho'], 2)}, měřeno na XGBoost skóre téhož běhu),
-hlavně přes nulové featury střední fáze
-u krátkých drah; to je známý strukturální únik.
+*Obrázek 1: Vstupy modelu na příkladu jedné dráhy. Modrý pás je terminální okno. Jeho
+průběh model vidí bod po bodu, deset teček win_0 až win_9. Oranžový pás je střední fáze.
+Tu model vidí jen jako tři souhrny: průměr (tečkovaná úsečka), maximum (trojúhelník)
+a podíl snímků nad prahem významnosti. Práh je čárkovaná vodorovná čára, 90. percentil
+excessu přes celý korpus. Hvězda je maximum přes celý život. Fialová šipka dole ukazuje
+polohu vrcholu v životě. Svorka vyznačuje nejdelší nepřerušený běh nadprahových snímků.*
+
+Po skupinách:
+
+- **Terminální okno, 10 čísel.** Průběh excessu v posledních 20 s, převzorkovaný na
+  10 bodů po 2 s. Jediná část života, kterou model vidí bod po bodu. U drah kratších než
+  okno se body před vznikem drží na první naměřené hodnotě.
+- **Souhrny střední fáze, 4 čísla.** Průměr, maximum, podíl významných snímků a poměr
+  maxima střední fáze k maximu okna. U drah do 10 snímků střední fáze neexistuje. Všechna
+  čtyři čísla jsou pak nula a právě tudy model pozná krátkou dráhu.
+- **Skaláry přes celý život, 3 čísla.** Maximum excessu. Poloha vrcholu v životě, kde 0 je
+  vznik a 1 zánik. Nejdelší souvislý běh významných snímků.
+- **Mrtvé vstupy, 10 čísel.** Sloty pre a post jsou vyhrazené pro vzorky před vznikem
+  a po zániku dráhy. Korpus je neobsahuje. Jsou proto vždy nula a model je ignoruje.
+
+Délka dráhy mezi featurami záměrně není. Přesto ji modely ze vstupů rekonstruují, hlavně
+přes nulové souhrny střední fáze u krátkých drah (Spearman ρ skóre–délka
+{cz(prim['rho'], 2)}, měřeno na XGBoost skóre téhož běhu). To je známý strukturální únik.
 
 ## 4. Co se děje na pozadí: trénink a vyhodnocení
 
-Postup je pro každou konfiguraci stejný; projděme ho krok za krokem.
+Postup je pro každou konfiguraci stejný. Projděme ho krok za krokem.
 
 **Vstupní tabulka.** Představme si tabulku: jeden řádek je jedna dráha, 27 sloupců jsou
 čísla z části 3 a vedle nich stojí štítek produktivní/abortivní. Nic jiného model nevidí;
 neví, ze kterého filmu dráha pochází, a délku dráhy dostává jen nepřímo.
 
-**Srovnání měřítek (standardizace).** Sloupce mají různé jednotky a rozsahy; průměrný
+**Srovnání měřítek (standardizace).** Sloupce mají různé jednotky a rozsahy. Průměrný
 excess je řádově desetina, nejdelší běh významných snímků desítky. Aby byly souměřitelné,
 každý sloupec se přepočte: odečte se jeho průměr a vydělí se směrodatnou odchylkou.
 Hodnota +1 pak vždy znamená „o jednu typickou odchylku nad průměrem", ať jde o amplitudu,
@@ -261,34 +341,35 @@ sloupce.
 **Poctivé vyhodnocení (out-of-fold).** Kdyby se model hodnotil na drahách, na kterých se
 učil, vyšla by čísla nadhodnocená. Filmy se proto rozdělí do 5 skupin a natrénuje se
 5 nezávislých modelů, každý na 12 filmech. Každá dráha pak dostane skóre od toho modelu,
-který její film při tréninku neviděl. Dělí se po celých filmech, ne po drahách; dráhy
+který její film při tréninku neviděl. Dělí se po celých filmech, ne po drahách. Dráhy
 z téže buňky jsou si totiž podobné a model by se jinak naučil poznávat buňku místo
 biologie.
 
-**Práh a confusion matice.** Skóre je číslo mezi 0 a 1; aby vznikla tabulka
+**Práh a confusion matice.** Skóre je číslo mezi 0 a 1. Aby vznikla tabulka
 správně/špatně, je třeba zvolit hranici. Youdenovo J volí hranici tam, kde je součet
 sensitivity a specificity nejvyšší. Hranice se ovšem vybírá na týchž skóre, která se pak
-hodnotí (*in-sample*); sens a spec jsou proto mírně nadhodnocené. AUC žádnou hranici
+hodnotí (*in-sample*). Sens a spec jsou proto mírně nadhodnocené. AUC žádnou hranici
 nepotřebuje, a nadhodnocená tedy není.
 
 **Kontroly.** Vedle modelu běží permutovaný null: tytéž featury, ale náhodně zamíchané
-štítky. Musí vyjít u 0,5; kdyby ne, je v postupu únik. A netrénovaná skóre (výška peaku,
+štítky. Musí vyjít u 0,5. Kdyby ne, je v postupu únik. A netrénovaná skóre (výška peaku,
 peak − vlastní baseline) říkají, co zvládne jedno číslo bez jakéhokoli učení.
 
 **Co je AUC, pooled a within-band.** AUC odpovídá na otázku: vyberme náhodně jednu
-produktivní a jednu abortivní dráhu; jak často jim model dá skóre ve správném pořadí?
+produktivní a jednu abortivní dráhu. Jak často jim model dá skóre ve správném pořadí?
 Hodnota 0,5 znamená házení mincí, 1,0 vždy správně. *Pooled* AUC losuje dvojice ze všech
-drah bez ohledu na délku; klidně tedy porovná produktivní dráhu žijící 100 s s abortivní
+drah bez ohledu na délku. Klidně tedy porovná produktivní dráhu žijící 100 s s abortivní
 žijící 12 s. Dlouhé dráhy jsou ale mnohem častěji produktivní, takže i model, který se
 naučí jen odhadovat délku, vyhraje většinu takových nesourodých dvojic, aniž by o dynaminu
 věděl cokoli. Pooled číslo proto míchá dynaminový signál s „umím poznat délku".
 *Within-band* AUC losuje dvojice pouze mezi drahami podobné délky (12 kvantilových strat,
-vážení počtem porovnatelných párů); otázka je pak férová, protože oběma drahám ve dvojici
-délka pomoci nemůže. Rozdíl pooled − within-band (gap) říká, kolik výkonu nesla délka.
-Na číslech primárního korpusu: pooled {cz(prim['auc'], 2)}, within-band
-{cz(prim['wb'], 2)}, gap +{cz(prim['gap'], 2)}; ze zdánlivého výkonu tedy
-{cz(prim['gap'], 2)} nese délka a nad náhodou zbývá {cz(prim['wb'] - 0.5, 2)} skutečné
-dynaminové informace.
+vážení počtem porovnatelných párů). Otázka je pak férová, protože oběma drahám ve dvojici
+délka pomoci nemůže. A co je *gap*: prosté odečtení, gap = pooled AUC − within-band
+AUC. Je to výkon, který zmizí, jakmile modelu vezmeme možnost pomáhat si délkou. Velký
+gap tedy znamená, že model stál hlavně na délce. Na číslech primárního korpusu: pooled
+{cz(prim['auc'], 2)}, within-band {cz(prim['wb'], 2)}, gap +{cz(prim['gap'], 2)}. Ze
+zdánlivého výkonu {cz(prim['auc'], 2)} tedy {cz(prim['gap'], 2)} dodala délka. Nad
+náhodou zbývá {cz(prim['wb'] - 0.5, 2)} skutečné dynaminové informace.
 
 ## 5. Výsledky
 
@@ -299,19 +380,19 @@ Youdenova J na OOF skóre; gap = pooled − within-band AUC.*
 
 ![přehled](figL1_logreg_overview.png)
 
-*Obrázek 1: Pooled a within-band AUC logistické regrese po konfiguracích; šedě within-band
+*Obrázek 2: Pooled a within-band AUC logistické regrese po konfiguracích. Šedě within-band
 AUC permutačního nullu. Tečkovaná čára je úroveň náhody.*
 
 **Diskuze:**
 
-Z tabulky 1 a obrázku 1 plyne čtvero. Za prvé, poolovaná AUC se drží kolem
-{cz(intr['auc'], 2)} až {cz(prim['auc'], 2)}, avšak gap je všude +0,15 až +0,19; většinu
+Z tabulky 1 a obrázku 2 plyne čtvero. Za prvé, poolovaná AUC se drží kolem
+{cz(intr['auc'], 2)} až {cz(prim['auc'], 2)}, avšak gap je všude +0,15 až +0,19. Většinu
 poolovaného výkonu tedy nese délka dráhy, kterou si model rekonstruuje ze vstupů. Za druhé,
 délkově očištěný signál je malý, ale reálný: within-band AUC {cz(intr['wb'])} až
 {cz(prim['wb'])} proti nullu na {cz(prim['null_wb'])}. Za třetí, výsledek je robustní vůči
 filtrování; přísnější filtry within-band AUC spíše snižují (odstraňují neúměrně mnoho
 produktivních drah), a proto se nefiltruje. Za čtvrté, end-observed korpus dává vyšší čísla
-než interior; rozdíl jde z přidaných drah s useknutým začátkem (delší a jasnější), ne
+než interior. Rozdíl jde z přidaných drah s useknutým začátkem (delší a jasnější), ne
 z lepšího modelu.
 
 ## 6. Čeho se regrese drží: koeficienty
@@ -322,16 +403,16 @@ modelu neukládá. K dispozici je ovšem rovnocenná analýza z opakování téh
 s amplitudou cmeAnalysis, tedy stejné featury, stejný trénink a detektor s výkonem shodným
 v setinách. Její koeficienty (standardizované, fitované po délkových pásmech, s 95%
 intervaly bootstrapem po filmech) ukazují jednoznačný vzor. Nejsilnější a stabilně kladný
-je průměr amplitudy přes část života před terminálním oknem; v pásmu 10–19 snímků jeho
+je průměr amplitudy přes část života před terminálním oknem. V pásmu 10–19 snímků jeho
 maximum. Váhy jednotlivých bodů terminálního okna jsou malé a většinou s intervalem přes
 nulu.
 {meta['coef_fig_md']}
 **Diskuze:**
 
 Dá se říct, že regrese rozpoznává produktivní dráhy podle trvale vyššího dynaminu během
-života, ne podle výrazné události na konci; kdyby scission nesl specifický podpis, ležely
+života, ne podle výrazné události na konci. Kdyby scission nesl specifický podpis, ležely
 by váhy na konci okna. Přenos tohoto čtení na referenční box-mean model je úsudek, byť
-podložený shodou výkonu i vstupů; přímé potvrzení by vyžadovalo doběhnout koeficientový
+podložený shodou výkonu i vstupů. Přímé potvrzení by vyžadovalo doběhnout koeficientový
 režim na referenčním korpusu. Podrobný návod, jak standardizované koeficienty číst, uvádí
 protokol detektoru.
 
@@ -344,34 +425,34 @@ a spec {cz(prim['spec'], 2)} u Youdenova prahu popisují tentýž slabý signál
 confusion matice a kvůli in-sample volbě prahu jsou mírně optimistické.
 
 **Co čísla neříkají.** Nejde o měřítko kvality SI ani o dynaminovou referenci pro článek.
-Model je trénovaný na SI štítcích; kdyby se jím SI ověřoval, byl by to kruh. Je to interní
+Model je trénovaný na SI štítcích. Kdyby se jím SI ověřoval, byl by to kruh. Je to interní
 diagnostika, kolik délkově nezávislé informace readout nese. Poolovaná AUC
-({cz(prim['auc'], 2)}) se nemá číst jako výkon detektoru; obsahuje +{cz(prim['gap'], 2)}
+({cz(prim['auc'], 2)}) se nemá číst jako výkon detektoru. Obsahuje +{cz(prim['gap'], 2)}
 příspěvku délky.
 
 **Proč je signál tak malý.** Tři důvody se sčítají. Oba štítky vznikají operátorem „stalo
 se to někdy za život", a proto je délka dominantním společným faktorem. Dynamin je na
 membráně i difuzně a box-mean jej sbírá včetně okolí, takže část signálu je kontext, ne
-jamka. A reference sama je nedokonalá; podle modelu skupiny může přibližně pětina
+jamka. A reference sama je nedokonalá. Podle modelu skupiny může přibližně pětina
 abortivních drah dynamin legitimně nést, takže ani dokonalý klasifikátor by nedosáhl shody
 100 %.
 
 **Vztah k volbě modelu pro článek.** Logistická regrese byla zvolena, protože výkonem
 odpovídá XGBoostu i MLP (rozdíly v setinách), má menší délkový únik a její koeficienty jsou
 interpretovatelné. Naše nezávislá kontrola s intenzitou z cmeAnalysis dává na srovnatelném
-korpusu tentýž obraz; podrobnosti v protokolu detektoru.
+korpusu tentýž obraz. Podrobnosti v protokolu detektoru.
 
 ## 8. Shrnutí
 
 1. Trénuje se na 27 featurách z průběhu box-mean excessu (okno posledních 20 s, souhrn
-   střední fáze, tři skaláry); délka dráhy mezi featurami není, model si ji ale zrekonstruuje.
-2. Vyhodnocení je out-of-fold s foldy po filmech; práh Youdenovým J (in-sample); kontrolou
+   střední fáze, tři skaláry). Délka dráhy mezi featurami není, model si ji ale zrekonstruuje.
+2. Vyhodnocení je out-of-fold s foldy po filmech. Práh se volí Youdenovým J, in-sample. Kontrolou
    je permutovaný null a netrénovaná skóre.
 3. Poolovaná AUC ≈ {cz(prim['auc'], 2)} je z většiny délka (gap +{cz(prim['gap'], 2)});
    délkově očištěný signál je within-band AUC ≈ {cz(prim['wb'], 2)}, malý, ale nad nullem.
-4. Výsledek je robustní vůči filtrům; end-observed čísla zvedá složení korpusu, ne model.
+4. Výsledek je robustní vůči filtrům. End-observed čísla zvedá složení korpusu, ne model.
 5. Koeficienty rovnocenné analýzy ukazují, že regrese stojí na trvale zvýšeném dynaminu
-   během života, ne na terminální události; referenční běh vlastní váhy neukládá.
+   během života, ne na terminální události. Referenční běh vlastní váhy neukládá.
 6. Model je interní diagnostika readoutu, ne dynaminová reference pro Figure 3.
 """
 
@@ -417,7 +498,7 @@ def build_tex(rows, meta):
                   "Logistická regrese ve všech osmi konfiguracích referenčního běhu. Práh "
                   "podle Youdenova J na OOF skóre; gap = pooled -- within-band AUC.", "tab:lr")
     fig = ("\\begin{figure}[H]\\centering\\includegraphics[width=\\linewidth]{figL1_logreg_overview.png}"
-           "\\caption{Pooled a within-band AUC logistické regrese po konfiguracích; šedě "
+           "\\caption{Pooled a within-band AUC logistické regrese po konfiguracích. Šedě "
            "within-band AUC permutačního nullu. Tečkovaná čára je úroveň náhody.}"
            "\\label{fig:lr}\\end{figure}")
     return TEX_HEAD + f"""
@@ -429,7 +510,7 @@ def build_tex(rows, meta):
 Popisujeme a interpretujeme původní (referenční) analýzu, ve které se logistická regrese učí
 predikovat SI štítek dráhy z~průběhu dynaminové intenzity. Nejprve vysvětlíme, na čem přesně
 se trénovalo a co se děje na pozadí. Následně shrneme výsledky a jejich čtení. Naše opakování
-téhož experimentu s~intenzitou z~cmeAnalysis zde záměrně neřešíme; je v~samostatném protokolu.
+téhož experimentu s~intenzitou z~cmeAnalysis zde záměrně neřešíme. Je v~samostatném protokolu.
 
 \\section*{{2\\; Data a readout}}
 Trénovalo se na korpusu 15 filmů U2OS (2\\,s/snímek, 79{{,}}1\\,nm/px). Každá dráha klatrinové
@@ -437,14 +518,14 @@ jamky nese štítek: \\emph{{produktivní}} $\\Leftrightarrow$ max SI přes živ
 Dynaminová intenzita dráhy je tzv. \\emph{{box-mean}} readout, a to průměr 5$\\times$5 pixelů
 dynaminového kanálu na pozici jamky v~každém snímku, vydělený biexponenciálním fitem průměrů
 snímků dané buňky. Slovem \\emph{{readout}} (odečet) obecně označujeme způsob, jakým se
-z~obrazu získá číslo ,,kolik dynaminu je na daném místě v~daném snímku``; box-mean je jedna
+z~obrazu získá číslo ,,kolik dynaminu je na daném místě v~daném snímku``. Box-mean je jedna
 z~možností, amplituda PSF fitu z~cmeAnalysis jiná. Po tomto dělení je 1 rovna průměru
 buňky; pracuje se s~\\emph{{excessem}}
 = hodnota $-$ 1, takže 0 znamená ,,na úrovni průměru buňky``. Poznamenejme dvě vlastnosti
 volby. Za prvé, dělení průměrem buňky srovnává filmy s~různým jasem a odstraňuje blednutí.
 Za druhé, box-mean sbírá všechen signál v~okénku, tedy i difuzní membránový dynamin
-a příspěvky sousedních jamek; lokální pozadí se neodečítá. Příklad pro představu: okénko má
-průměrný jas 1\\,300 a průměr buňky v~tom čase je 1\\,000; hodnota readoutu je 1{{,}}3
+a příspěvky sousedních jamek. Lokální pozadí se neodečítá. Příklad pro představu: okénko má
+průměrný jas 1\\,300 a průměr buňky v~tom čase je 1\\,000. Hodnota readoutu je 1{{,}}3
 a excess 0{{,}}3, tedy ,,o~30\\,\\% nad průměrem buňky``.
 \\par
 Korpus se vyhodnocuje v~osmi konfiguracích filtrů (tabulka~\\ref{{tab:lr}}): kombinace
@@ -454,31 +535,45 @@ $\\geq$ 5\\,px) a úplnosti dráhy (\\emph{{interior}} = začátek i konec v~zá
 ,,bez filtru, end-observed`` (n = {e(fmt_n(prim['n']))}).
 
 \\section*{{3\\; Na čem přesně se model učí: featury}}
-Z~každé dráhy se počítá 27 vstupních čísel; informativních je 17, zbylých 10
-(\\texttt{{pre\\_*}}, \\texttt{{post\\_*}}) je v~tomto korpusu identicky nulových (vzorky
-před vznikem a po zániku dráhy korpus neobsahuje).
+Featura je jedno číslo spočítané z~průběhu dráhy. Dohromady jich je 27 a tvoří jeden řádek
+vstupní tabulky. Nejlépe se chápou na příkladu. Obrázek~\\ref{{fig:feat}} ukazuje smyšlenou
+dráhu žijící 50\\,s. Její život dělíme na dvě části. Posledních 20\\,s je terminální okno,
+modrý pás. Všechno před tím je střední fáze, oranžový pás.
+\\begin{{figure}}[H]\\centering
+\\includegraphics[width=\\linewidth]{{figL0_features.png}}
+\\caption{{Vstupy modelu na příkladu jedné dráhy. Modrý pás je terminální okno. Jeho průběh
+model vidí bod po bodu, deset teček win\\_0 až win\\_9. Oranžový pás je střední fáze. Tu
+model vidí jen jako tři souhrny: průměr (tečkovaná úsečka), maximum (trojúhelník) a podíl
+snímků nad prahem významnosti. Práh je čárkovaná vodorovná čára, 90.~percentil excessu přes
+celý korpus. Hvězda je maximum přes celý život. Fialová šipka dole ukazuje polohu vrcholu
+v~životě. Svorka vyznačuje nejdelší nepřerušený běh nadprahových snímků.}}
+\\label{{fig:feat}}\\end{{figure}}
+Po skupinách:
 \\begin{{itemize}}
-\\item Terminální okno (10): excess v~posledních 20\\,s života, převzorkovaný v~reálném čase
-na 10 bodů; u~drah kratších než okno se hodnoty před vznikem drží na první naměřené.
-\\item Střední fáze života (4): průměr a maximum excessu před oknem, podíl ,,významných``
-snímků (excess $>$ 90.~percentil korpusu) a poměr maxima střední fáze k~maximu okna;
-u~drah $\\leq$ 10 snímků jsou nulové.
-\\item Globální skaláry (3): maximum excessu přes celý život, normalizovaná poloha vrcholu
-v~životě a nejdelší souvislý běh významných snímků.
+\\item Terminální okno, 10 čísel. Průběh excessu v~posledních 20\\,s, převzorkovaný na
+10 bodů po 2\\,s. Jediná část života, kterou model vidí bod po bodu. U~drah kratších než
+okno se body před vznikem drží na první naměřené hodnotě.
+\\item Souhrny střední fáze, 4 čísla. Průměr, maximum, podíl významných snímků a poměr
+maxima střední fáze k~maximu okna. U~drah do 10 snímků střední fáze neexistuje. Všechna
+čtyři čísla jsou pak nula a právě tudy model pozná krátkou dráhu.
+\\item Skaláry přes celý život, 3 čísla. Maximum excessu. Poloha vrcholu v~životě, kde 0 je
+vznik a 1 zánik. Nejdelší souvislý běh významných snímků.
+\\item Mrtvé vstupy, 10 čísel. Sloty pre a post jsou vyhrazené pro vzorky před vznikem
+a po zániku dráhy. Korpus je neobsahuje. Jsou proto vždy nula a model je ignoruje.
 \\end{{itemize}}
-Délka dráhy mezi featurami záměrně není. Přesto ji modely ze vstupů rekonstruují (Spearman
-$\\rho$ skóre--délka {cz(prim['rho'], 2)}, měřeno na XGBoost skóre téhož běhu), hlavně přes
-nulové featury střední fáze u~krátkých drah; to je známý strukturální únik.
+Délka dráhy mezi featurami záměrně není. Přesto ji modely ze vstupů rekonstruují, hlavně
+přes nulové souhrny střední fáze u~krátkých drah (Spearman $\\rho$ skóre--délka
+{cz(prim['rho'], 2)}, měřeno na XGBoost skóre téhož běhu). To je známý strukturální únik.
 
 \\section*{{4\\; Co se děje na pozadí: trénink a vyhodnocení}}
-Postup je pro každou konfiguraci stejný; projděme ho krok za krokem.
+Postup je pro každou konfiguraci stejný. Projděme ho krok za krokem.
 \\par
 \\textbf{{Vstupní tabulka.}} Představme si tabulku: jeden řádek je jedna dráha, 27 sloupců
 jsou čísla z~části~3 a vedle nich stojí štítek produktivní/abortivní. Nic jiného model
 nevidí; neví, ze kterého filmu dráha pochází, a délku dráhy dostává jen nepřímo.
 \\par
-\\textbf{{Srovnání měřítek (standardizace).}} Sloupce mají různé jednotky a rozsahy;
-průměrný excess je řádově desetina, nejdelší běh významných snímků desítky. Aby byly
+\\textbf{{Srovnání měřítek (standardizace).}} Sloupce mají různé jednotky a rozsahy.
+Průměrný excess je řádově desetina, nejdelší běh významných snímků desítky. Aby byly
 souměřitelné, každý sloupec se přepočte: odečte se jeho průměr a vydělí se směrodatnou
 odchylkou. Hodnota +1 pak vždy znamená ,,o~jednu typickou odchylku nad průměrem``, ať jde
 o~amplitudu, podíl, nebo počet. Případné chybějící hodnoty se předtím doplní mediánem
@@ -493,35 +588,36 @@ jednotlivé sloupce.
 \\textbf{{Poctivé vyhodnocení (out-of-fold).}} Kdyby se model hodnotil na drahách, na
 kterých se učil, vyšla by čísla nadhodnocená. Filmy se proto rozdělí do 5 skupin a natrénuje
 se 5 nezávislých modelů, každý na 12 filmech. Každá dráha pak dostane skóre od toho modelu,
-který její film při tréninku neviděl. Dělí se po celých filmech, ne po drahách; dráhy
+který její film při tréninku neviděl. Dělí se po celých filmech, ne po drahách. Dráhy
 z~téže buňky jsou si totiž podobné a model by se jinak naučil poznávat buňku místo
 biologie.
 \\par
-\\textbf{{Práh a confusion matice.}} Skóre je číslo mezi 0 a 1; aby vznikla tabulka
+\\textbf{{Práh a confusion matice.}} Skóre je číslo mezi 0 a 1. Aby vznikla tabulka
 správně/špatně, je třeba zvolit hranici. Youdenovo J volí hranici tam, kde je součet
 sensitivity a specificity nejvyšší. Hranice se ovšem vybírá na týchž skóre, která se pak
-hodnotí (\\emph{{in-sample}}); sens a spec jsou proto mírně nadhodnocené. AUC žádnou hranici
+hodnotí (\\emph{{in-sample}}). Sens a spec jsou proto mírně nadhodnocené. AUC žádnou hranici
 nepotřebuje, a nadhodnocená tedy není.
 \\par
 \\textbf{{Kontroly.}} Vedle modelu běží permutovaný null: tytéž featury, ale náhodně
-zamíchané štítky. Musí vyjít u~0{{,}}5; kdyby ne, je v~postupu únik. A netrénovaná skóre
+zamíchané štítky. Musí vyjít u~0{{,}}5. Kdyby ne, je v~postupu únik. A netrénovaná skóre
 (výška peaku, peak $-$ vlastní baseline) říkají, co zvládne jedno číslo bez jakéhokoli
 učení.
 \\par
 \\textbf{{Co je AUC, pooled a within-band.}} AUC odpovídá na otázku: vyberme náhodně jednu
-produktivní a jednu abortivní dráhu; jak často jim model dá skóre ve správném pořadí?
+produktivní a jednu abortivní dráhu. Jak často jim model dá skóre ve správném pořadí?
 Hodnota 0{{,}}5 znamená házení mincí, 1{{,}}0 vždy správně. \\emph{{Pooled}} AUC losuje
-dvojice ze všech drah bez ohledu na délku; klidně tedy porovná produktivní dráhu žijící
+dvojice ze všech drah bez ohledu na délku. Klidně tedy porovná produktivní dráhu žijící
 100\\,s s~abortivní žijící 12\\,s. Dlouhé dráhy jsou ale mnohem častěji produktivní, takže
 i model, který se naučí jen odhadovat délku, vyhraje většinu takových nesourodých dvojic,
 aniž by o~dynaminu věděl cokoli. Pooled číslo proto míchá dynaminový signál s~,,umím poznat
 délku``. \\emph{{Within-band}} AUC losuje dvojice pouze mezi drahami podobné délky
-(12 kvantilových strat, vážení počtem porovnatelných párů); otázka je pak férová, protože
-oběma drahám ve dvojici délka pomoci nemůže. Rozdíl pooled $-$ within-band (gap) říká,
-kolik výkonu nesla délka. Na číslech primárního korpusu: pooled {cz(prim['auc'], 2)},
-within-band {cz(prim['wb'], 2)}, gap +{cz(prim['gap'], 2)}; ze zdánlivého výkonu tedy
-{cz(prim['gap'], 2)} nese délka a nad náhodou zbývá {cz(prim['wb'] - 0.5, 2)} skutečné
-dynaminové informace.
+(12 kvantilových strat, vážení počtem porovnatelných párů). Otázka je pak férová, protože
+oběma drahám ve dvojici délka pomoci nemůže. A co je \\emph{{gap}}: prosté odečtení, gap =
+pooled AUC $-$ within-band AUC. Je to výkon, který zmizí, jakmile modelu vezmeme možnost
+pomáhat si délkou. Velký gap tedy znamená, že model stál hlavně na délce. Na číslech
+primárního korpusu: pooled {cz(prim['auc'], 2)}, within-band {cz(prim['wb'], 2)}, gap
++{cz(prim['gap'], 2)}. Ze zdánlivého výkonu {cz(prim['auc'], 2)} tedy {cz(prim['gap'], 2)}
+dodala délka. Nad náhodou zbývá {cz(prim['wb'] - 0.5, 2)} skutečné dynaminové informace.
 
 \\section*{{5\\; Výsledky}}
 {t}
@@ -530,12 +626,12 @@ dynaminové informace.
 
 Z~tabulky~\\ref{{tab:lr}} a obrázku~\\ref{{fig:lr}} plyne čtvero. Za prvé, poolovaná AUC se
 drží kolem {cz(intr['auc'], 2)} až {cz(prim['auc'], 2)}, avšak gap je všude +0{{,}}15 až
-+0{{,}}19; většinu poolovaného výkonu tedy nese délka dráhy, kterou si model rekonstruuje ze
++0{{,}}19. Většinu poolovaného výkonu tedy nese délka dráhy, kterou si model rekonstruuje ze
 vstupů. Za druhé, délkově očištěný signál je malý, ale reálný: within-band AUC
 {cz(intr['wb'])} až {cz(prim['wb'])} proti nullu na {cz(prim['null_wb'])}. Za třetí,
-výsledek je robustní vůči filtrování; přísnější filtry within-band AUC spíše snižují
+výsledek je robustní vůči filtrování. Přísnější filtry within-band AUC spíše snižují
 (odstraňují neúměrně mnoho produktivních drah), a proto se nefiltruje. Za čtvrté,
-end-observed korpus dává vyšší čísla než interior; rozdíl jde z~přidaných drah s~useknutým
+end-observed korpus dává vyšší čísla než interior. Rozdíl jde z~přidaných drah s~useknutým
 začátkem (delší a jasnější), ne z~lepšího modelu.
 
 \\section*{{6\\; Čeho se regrese drží: koeficienty}}
@@ -545,16 +641,16 @@ modelu neukládá. K~dispozici je ovšem rovnocenná analýza z~opakování téh
 s~amplitudou cmeAnalysis, tedy stejné featury, stejný trénink a detektor s~výkonem shodným
 v~setinách. Její koeficienty (standardizované, fitované po délkových pásmech, s~95\\,\\%
 intervaly bootstrapem po filmech) ukazují jednoznačný vzor. Nejsilnější a stabilně kladný
-je průměr amplitudy přes část života před terminálním oknem; v~pásmu 10--19 snímků jeho
+je průměr amplitudy přes část života před terminálním oknem. V~pásmu 10--19 snímků jeho
 maximum. Váhy jednotlivých bodů terminálního okna jsou malé a většinou s~intervalem přes
 nulu.
 {meta['coef_fig_tex']}
 \\textbf{{Diskuze:}}
 
 Dá se říct, že regrese rozpoznává produktivní dráhy podle trvale vyššího dynaminu během
-života, ne podle výrazné události na konci; kdyby scission nesl specifický podpis, ležely
+života, ne podle výrazné události na konci. Kdyby scission nesl specifický podpis, ležely
 by váhy na konci okna. Přenos tohoto čtení na referenční box-mean model je úsudek, byť
-podložený shodou výkonu i vstupů; přímé potvrzení by vyžadovalo doběhnout koeficientový
+podložený shodou výkonu i vstupů. Přímé potvrzení by vyžadovalo doběhnout koeficientový
 režim na referenčním korpusu. Podrobný návod, jak standardizované koeficienty číst, uvádí
 protokol detektoru.
 
@@ -566,35 +662,35 @@ abortivní, seřadí model správně asi v~58\\,\\% případů (proti 50\\,\\% n
 signál v~řeči confusion matice a kvůli in-sample volbě prahu jsou mírně optimistické.
 \\par
 \\textbf{{Co čísla neříkají.}} Nejde o~měřítko kvality SI ani o~dynaminovou referenci pro
-článek. Model je trénovaný na SI štítcích; kdyby se jím SI ověřoval, byl by to kruh. Je to
+článek. Model je trénovaný na SI štítcích. Kdyby se jím SI ověřoval, byl by to kruh. Je to
 interní diagnostika, kolik délkově nezávislé informace readout nese. Poolovaná AUC
-({cz(prim['auc'], 2)}) se nemá číst jako výkon detektoru; obsahuje +{cz(prim['gap'], 2)}
+({cz(prim['auc'], 2)}) se nemá číst jako výkon detektoru. Obsahuje +{cz(prim['gap'], 2)}
 příspěvku délky.
 \\par
 \\textbf{{Proč je signál tak malý.}} Tři důvody se sčítají. Oba štítky vznikají operátorem
 ,,stalo se to někdy za život``, a proto je délka dominantním společným faktorem. Dynamin je
 na membráně i difuzně a box-mean jej sbírá včetně okolí, takže část signálu je kontext, ne
-jamka. A reference sama je nedokonalá; podle modelu skupiny může přibližně pětina
+jamka. A reference sama je nedokonalá. Podle modelu skupiny může přibližně pětina
 abortivních drah dynamin legitimně nést, takže ani dokonalý klasifikátor by nedosáhl shody
 100\\,\\%.
 \\par
 \\textbf{{Vztah k~volbě modelu pro článek.}} Logistická regrese byla zvolena, protože
 výkonem odpovídá XGBoostu i MLP (rozdíly v~setinách), má menší délkový únik a její
 koeficienty jsou interpretovatelné. Naše nezávislá kontrola s~intenzitou z~cmeAnalysis dává
-na srovnatelném korpusu tentýž obraz; podrobnosti v~protokolu detektoru.
+na srovnatelném korpusu tentýž obraz. Podrobnosti v~protokolu detektoru.
 
 \\section*{{8\\; Shrnutí}}
 \\begin{{enumerate}}
 \\item Trénuje se na 27 featurách z~průběhu box-mean excessu (okno posledních 20\\,s, souhrn
-střední fáze, tři skaláry); délka dráhy mezi featurami není, model si ji ale zrekonstruuje.
+střední fáze, tři skaláry). Délka dráhy mezi featurami není, model si ji ale zrekonstruuje.
 \\item Vyhodnocení je out-of-fold s~foldy po filmech; práh Youdenovým J (in-sample);
 kontrolou je permutovaný null a netrénovaná skóre.
 \\item Poolovaná AUC $\\approx$ {cz(prim['auc'], 2)} je z~většiny délka (gap
 +{cz(prim['gap'], 2)}); délkově očištěný signál je within-band AUC $\\approx$
 {cz(prim['wb'], 2)}, malý, ale nad nullem.
-\\item Výsledek je robustní vůči filtrům; end-observed čísla zvedá složení korpusu, ne model.
+\\item Výsledek je robustní vůči filtrům. End-observed čísla zvedá složení korpusu, ne model.
 \\item Koeficienty rovnocenné analýzy ukazují, že regrese stojí na trvale zvýšeném dynaminu
-během života, ne na terminální události; referenční běh vlastní váhy neukládá.
+během života, ne na terminální události. Referenční běh vlastní váhy neukládá.
 \\item Model je interní diagnostika readoutu, ne dynaminová reference pro Figure~3.
 \\end{{enumerate}}
 \\end{{document}}
@@ -622,6 +718,7 @@ def main() -> int:
     meta = {"date": _dt.date.today().isoformat(),
             "git": subprocess.run(["git", "-C", ROOT, "rev-parse", "--short", "HEAD"],
                                   capture_output=True, text=True).stdout.strip() or "?"}
+    fig_features(os.path.join(args.out, "figL0_features.png"))
     fig_overview(rows, os.path.join(args.out, "figL1_logreg_overview.png"))
     meta["coef_fig_md"] = meta["coef_fig_tex"] = ""
     if os.path.exists(args.coefs_json):
@@ -639,30 +736,30 @@ def main() -> int:
                 "tečkovanou čáru (průměrná dráha), model vrací přibližně tento podíl. "
                 "Vícerozměrný model esovku má, jen ji lze kreslit vždy pro jeden vstup.")
         guide2 = (
-            "Obrázek 2 čteme takto. Model dává každé dráze skóre: každý vstup vynásobí "
+            "Obrázek 3 čteme takto. Model dává každé dráze skóre: každý vstup vynásobí "
             "svou vahou a výsledky sečte. Kladná váha táhne dráhu k „produktivní\", "
             "záporná k „abortivní\". Levý panel ukazuje váhy souhrnných vstupů. Každý "
             "řádek je jeden vstup, každá tečka jeho váha v jednom délkovém pásmu (barvy), "
             "vousy kolem tečky jsou 95% interval a svislá čára je nula. Tečka vpravo od "
-            "nuly znamená „táhne k produktivní\"; když vous protíná nulu, není jistý ani "
+            "nuly znamená „táhne k produktivní\". Když vous protíná nulu, není jistý ani "
             "směr a takovou váhu nevykládáme. Pravý panel ukazuje totéž pro deset bodů "
-            "posledních 20 s života; osa x je čas před koncem dráhy. Kdyby model poznával "
+            "posledních 20 s života. Osa x je čas před koncem dráhy. Kdyby model poznával "
             "produktivní dráhy podle události těsně před koncem, vyletěla by zde některá "
             "čára u pravého okraje nahoru.")
         guide3 = (
-            "Obrázek 3 je myšlenkový pokus s týmž modelem. Vezměme průměrnou dráhu "
+            "Obrázek 4 je myšlenkový pokus s týmž modelem. Vezměme průměrnou dráhu "
             "a otáčejme jediným knoflíkem, a to průměrem amplitudy před oknem; ostatní "
             "vstupy držíme na průměru. Křivka ukazuje, jakou pravděpodobnost "
             "„produktivní\" model dráze přisoudí. Vodorovné tečkované čáry jsou podíl "
-            "produktivních v pásmu; svislá tečkovaná čára označuje průměrnou dráhu. "
+            "produktivních v pásmu. Svislá tečkovaná čára označuje průměrnou dráhu. "
             "Ploché křivky krátkých pásem říkají, že tam tento vstup nerozhoduje, ve "
-            "shodě s levým panelem obrázku 2.")
+            "shodě s levým panelem obrázku 3.")
         meta["coef_fig_md"] = (f"\n{guide2}\n"
                                f"\n![koeficienty]({'figL2_logreg_coefs.png'})\n\n"
-                               f"*Obrázek 2: {cap}*\n"
+                               f"*Obrázek 3: {cap}*\n"
                                f"\n{guide3}\n"
                                f"\n![sigmoida]({'figL3_logreg_sigmoid.png'})\n\n"
-                               f"*Obrázek 3: {cap3}*\n")
+                               f"*Obrázek 4: {cap3}*\n")
         meta["coef_fig_tex"] = (
             "Obrázek~\\ref{fig:coef} čteme takto. Model dává každé dráze skóre: každý "
             "vstup vynásobí svou vahou a výsledky sečte. Kladná váha táhne dráhu "
@@ -670,9 +767,9 @@ def main() -> int:
             "souhrnných vstupů. Každý řádek je jeden vstup, každá tečka jeho váha "
             "v~jednom délkovém pásmu (barvy), vousy kolem tečky jsou 95\\,\\% interval "
             "a svislá čára je nula. Tečka vpravo od nuly znamená ,,táhne "
-            "k~produktivní``; když vous protíná nulu, není jistý ani směr a takovou váhu "
+            "k~produktivní``. Když vous protíná nulu, není jistý ani směr a takovou váhu "
             "nevykládáme. Pravý panel ukazuje totéž pro deset bodů posledních 20\\,s "
-            "života; osa x je čas před koncem dráhy. Kdyby model poznával produktivní "
+            "života. Osa x je čas před koncem dráhy. Kdyby model poznával produktivní "
             "dráhy podle události těsně před koncem, vyletěla by zde některá čára "
             "u~pravého okraje nahoru.\n"
             "\\begin{figure}[H]\\centering"
@@ -686,7 +783,7 @@ def main() -> int:
             "dráhu a otáčejme jediným knoflíkem, a to průměrem amplitudy před oknem; "
             "ostatní vstupy držíme na průměru. Křivka ukazuje, jakou pravděpodobnost "
             ",,produktivní`` model dráze přisoudí. Vodorovné tečkované čáry jsou podíl "
-            "produktivních v~pásmu; svislá tečkovaná čára označuje průměrnou dráhu. "
+            "produktivních v~pásmu. Svislá tečkovaná čára označuje průměrnou dráhu. "
             "Ploché křivky krátkých pásem říkají, že tam tento vstup nerozhoduje, ve "
             "shodě s~levým panelem obrázku~\\ref{fig:coef}.\n"
             "\\begin{figure}[H]\\centering"
