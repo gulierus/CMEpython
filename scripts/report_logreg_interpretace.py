@@ -257,14 +257,7 @@ def build_markdown(rows, meta):
 Datum {meta['date']} · CMEpython {meta['git']} · vygenerováno `scripts/report_logreg_interpretace.py`
 · zdroj čísel: `dynamin_v2_confusion_sweep.json` větve `release/dynamin-confusion-v1`
 
-## 1. Co je předmětem dokumentu
-
-Vykládáme referenční analýzu. Logistická regrese se v ní učí poznat SI štítek dráhy
-z průběhu dynaminové intenzity. Výklad jde od dat přes trénink k výsledkům a jejich mezím.
-Naše opakování téhož experimentu s intenzitou z cmeAnalysis má samostatný protokol a zde
-je neřešíme.
-
-## 2. Data a readout
+## 1. Data a readout
 
 Začněme tím, co je jedna položka dat. Je to dráha klatrinové jamky v jednom z 15 filmů
 U2OS (2 s na snímek, 79,1 nm na pixel). Každá dráha nese štítek. Produktivní je tehdy,
@@ -288,7 +281,7 @@ Analýza běží v osmi konfiguracích filtrů (tabulka 1). Kombinují se *clust
 *Interior* znamená začátek i konec v záznamu. *End-observed* přidává dráhy s useknutým
 začátkem. Primární korpus analýzy je „bez filtru, end-observed" (n = {fmt_n(prim['n'])}).
 
-## 3. Na čem přesně se model učí: featury
+## 2. Na čem přesně se model učí: featury
 
 Featura je jedno číslo spočítané z průběhu dráhy. Dohromady jich je 27 a tvoří jeden řádek
 vstupní tabulky. Nejlépe se chápou na příkladu. Obrázek 1 ukazuje smyšlenou dráhu žijící
@@ -327,14 +320,14 @@ featury je délka. A za čtvrté, maxima rostou s počtem pokusů. Maximum z 60 
 i u čistého šumu vyšší než maximum z 8 snímků. Model tyto stopy složí dohromady a délku
 fakticky zná (Spearman ρ skóre a délky {cz(prim['rho'], 2)}, měřeno na XGBoost skóre
 téhož běhu). To je známý strukturální únik. Právě jeho výhodu ruší within-band
-vyhodnocení v části 4.
+vyhodnocení v části 3.
 
-## 4. Co se děje na pozadí: trénink a vyhodnocení
+## 3. Co se děje na pozadí: trénink a vyhodnocení
 
 Postup je pro každou konfiguraci stejný. Projděme ho v pořadí, v jakém běží.
 
 **Vstupní tabulka.** Všechno, co model kdy uvidí, je jedna tabulka. Řádek je dráha.
-Sloupců je 27, jsou to čísla z části 3, a vedle nich stojí štítek. Nic víc. Model neví,
+Sloupců je 27, jsou to čísla z části 2, a vedle nich stojí štítek. Nic víc. Model neví,
 z jakého filmu dráha pochází, a délku dostává jen nepřímo.
 
 **Srovnání měřítek (standardizace).** Sloupce mají různé jednotky a rozsahy. Průměrný
@@ -381,7 +374,7 @@ zmizí, jakmile modelu délku vezmeme. Na číslech primárního korpusu: pooled
 Z výkonu {cz(prim['auc'], 2)} tedy {cz(prim['gap'], 2)} dodala délka. Nad náhodou zbývá
 {cz(prim['wb'] - 0.5, 2)} skutečné dynaminové informace.
 
-## 5. Výsledky
+## 4. Výsledky
 
 {t}
 
@@ -405,7 +398,7 @@ drah a within-band AUC srážejí až na úroveň nullu (cluster < 2: 0,49). Pro
 nefiltruje. A za čtvrté, end-observed čísla jsou vyšší než interior. Vyšší
 je ale korpus, ne model. Přidané dráhy s useknutým začátkem jsou delší a jasnější.
 
-## 6. Čeho se regrese drží: koeficienty
+## 5. Čeho se regrese drží: koeficienty
 
 Přirozená otázka zní, které vstupy model táhnou. U referenčního běhu na ni nelze odpovědět
 přímo. Větev s výsledky obsahuje výkonnostní čísla, ale hodnoty naučených vah k box-mean
@@ -424,7 +417,7 @@ podložený shodou výkonu i vstupů. Přímé potvrzení by vyžadovalo doběhn
 režim na referenčním korpusu. Podrobný návod, jak standardizované koeficienty číst, uvádí
 protokol detektoru.
 
-## 7. Interpretace a meze
+## 6. Interpretace a meze
 
 **Co čísla říkají.** Představme si dvě dráhy stejné délky, jednu produktivní a jednu
 abortivní. Model je seřadí správně asi v 58 % případů. Náhoda by dala 50 %. To je celý
@@ -450,7 +443,7 @@ odpovídá XGBoostu i MLP (rozdíly v setinách), má menší délkový únik a 
 jsou interpretovatelné. Naše nezávislá kontrola s intenzitou z cmeAnalysis dává na
 srovnatelném korpusu tentýž obraz. Podrobnosti uvádí protokol detektoru.
 
-## 8. Shrnutí
+## 7. Shrnutí
 
 1. Trénuje se na 27 featurách z průběhu box-mean excessu (okno posledních 20 s, souhrn
    střední fáze, tři skaláry). Délka dráhy mezi featurami není, model si ji ale zrekonstruuje.
@@ -515,13 +508,7 @@ def build_tex(rows, meta):
 {{\\small Datum {meta['date']} \;·\; CMEpython {meta['git']} \\\\ zdroj čísel:
 \\texttt{{dynamin\\_v2\\_confusion\\_sweep.json}} větve \\texttt{{release/dynamin-confusion-v1}}}}
 
-\\section*{{1\; Co je předmětem dokumentu}}
-Vykládáme referenční analýzu. Logistická regrese se v~ní učí poznat SI štítek dráhy
-z~průběhu dynaminové intenzity. Výklad jde od dat přes trénink k~výsledkům a jejich mezím.
-Naše opakování téhož experimentu s~intenzitou z~cmeAnalysis má samostatný protokol a zde
-je neřešíme.
-
-\\section*{{2\; Data a readout}}
+\\section*{{1\; Data a readout}}
 Začněme tím, co je jedna položka dat. Je to dráha klatrinové jamky v~jednom z~15 filmů
 U2OS (2\\,s na snímek, 79{{,}}1\\,nm na pixel). Každá dráha nese štítek. \\emph{{Produktivní}}
 je tehdy, když její Shape Index někdy za život překročí 0{{,}}7. Jinak je \\emph{{abortivní}}.
@@ -545,7 +532,7 @@ $\\geq$ 5\\,px) a úplnost dráhy. \\emph{{Interior}} znamená začátek i konec
 \\emph{{End-observed}} přidává dráhy s~useknutým začátkem. Primární korpus analýzy je
 ,,bez filtru, end-observed`` (n = {e(fmt_n(prim['n']))}).
 
-\\section*{{3\; Na čem přesně se model učí: featury}}
+\\section*{{2\; Na čem přesně se model učí: featury}}
 Featura je jedno číslo spočítané z~průběhu dráhy. Dohromady jich je 27 a tvoří jeden řádek
 vstupní tabulky. Nejlépe se chápou na příkladu. Obrázek~\\ref{{fig:feat}} ukazuje smyšlenou
 dráhu žijící 50\\,s. Její život dělíme na dvě části. Posledních 20\\,s je terminální okno,
@@ -582,13 +569,13 @@ featury je délka. A za čtvrté, maxima rostou s~počtem pokusů. Maximum z~60 
 i u~čistého šumu vyšší než maximum z~8 snímků. Model tyto stopy složí dohromady a délku
 fakticky zná (Spearman $\\rho$ skóre a délky {cz(prim['rho'], 2)}, měřeno na XGBoost
 skóre téhož běhu). To je známý strukturální únik. Právě jeho výhodu ruší within-band
-vyhodnocení v~části~4.
+vyhodnocení v~části~3.
 
-\\section*{{4\; Co se děje na pozadí: trénink a vyhodnocení}}
+\\section*{{3\; Co se děje na pozadí: trénink a vyhodnocení}}
 Postup je pro každou konfiguraci stejný. Projděme ho v~pořadí, v~jakém běží.
 \\par
 \\textbf{{Vstupní tabulka.}} Všechno, co model kdy uvidí, je jedna tabulka. Řádek je dráha.
-Sloupců je 27, jsou to čísla z~části~3, a vedle nich stojí štítek. Nic víc. Model neví,
+Sloupců je 27, jsou to čísla z~části~2, a vedle nich stojí štítek. Nic víc. Model neví,
 z~jakého filmu dráha pochází, a délku dostává jen nepřímo.
 \\par
 \\textbf{{Srovnání měřítek (standardizace).}} Sloupce mají různé jednotky a rozsahy.
@@ -635,7 +622,7 @@ Na číslech primárního korpusu: pooled {cz(prim['auc'], 2)}, within-band {cz(
 gap +{cz(prim['gap'], 2)}. Z~výkonu {cz(prim['auc'], 2)} tedy {cz(prim['gap'], 2)} dodala
 délka. Nad náhodou zbývá {cz(prim['wb'] - 0.5, 2)} skutečné dynaminové informace.
 
-\\section*{{5\; Výsledky}}
+\\section*{{4\; Výsledky}}
 {t}
 {fig}
 \\textbf{{Diskuze:}}
@@ -650,7 +637,7 @@ neúměrně mnoho produktivních drah a within-band AUC srážejí až na úrove
 než interior. Vyšší je ale korpus, ne model. Přidané dráhy s~useknutým začátkem jsou delší
 a jasnější.
 
-\\section*{{6\; Čeho se regrese drží: koeficienty}}
+\\section*{{5\; Čeho se regrese drží: koeficienty}}
 Přirozená otázka zní, které vstupy model táhnou. U~referenčního běhu na ni nelze odpovědět
 přímo. Větev s~výsledky obsahuje výkonnostní čísla, ale hodnoty naučených vah k~box-mean
 modelu neukládá. Máme ovšem rovnocennou analýzu z~opakování téhož experimentu s~amplitudou
@@ -669,7 +656,7 @@ podložený shodou výkonu i vstupů. Přímé potvrzení by vyžadovalo doběhn
 režim na referenčním korpusu. Podrobný návod, jak standardizované koeficienty číst, uvádí
 protokol detektoru.
 
-\\section*{{7\; Interpretace a meze}}
+\\section*{{6\; Interpretace a meze}}
 \\textbf{{Co čísla říkají.}} Představme si dvě dráhy stejné délky, jednu produktivní
 a jednu abortivní. Model je seřadí správně asi v~58\\,\\% případů. Náhoda by dala
 50\\,\\%. To je celý dynaminový signál: reálný, ale malý. Sens {cz(prim['sens'], 2)}
@@ -694,7 +681,7 @@ výkonem odpovídá XGBoostu i MLP (rozdíly v~setinách), má menší délkový
 koeficienty jsou interpretovatelné. Naše nezávislá kontrola s~intenzitou z~cmeAnalysis
 dává na srovnatelném korpusu tentýž obraz. Podrobnosti uvádí protokol detektoru.
 
-\\section*{{8\; Shrnutí}}
+\\section*{{7\; Shrnutí}}
 \\begin{{enumerate}}
 \\item Trénuje se na 27 featurách z~průběhu box-mean excessu (okno posledních 20\\,s,
 souhrn střední fáze, tři skaláry). Délka dráhy mezi featurami není, model si ji ale
