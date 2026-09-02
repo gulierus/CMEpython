@@ -317,9 +317,17 @@ Po skupinách:
 - **Mrtvé vstupy, 10 čísel.** Sloty pre a post jsou vyhrazené pro vzorky před vznikem
   a po zániku dráhy. Korpus je neobsahuje. Jsou proto vždy nula a model je ignoruje.
 
-Délka dráhy mezi featurami záměrně není. Přesto ji modely ze vstupů rekonstruují, hlavně
-přes nulové souhrny střední fáze u krátkých drah (Spearman ρ skóre–délka
-{cz(prim['rho'], 2)}, měřeno na XGBoost skóre téhož běhu). To je známý strukturální únik.
+Délka dráhy mezi featurami záměrně není. Přesto si ji modely ze vstupů zrekonstruují,
+a to čtyřmi cestami. Za prvé, dráha do 10 snímků nemá střední fázi, takže její čtyři
+souhrny jsou přesně nula. Čtyři nuly vedle sebe jsou spolehlivý prapor krátké dráhy.
+Za druhé, u dráhy kratší než okno se body před vznikem drží na první naměřené hodnotě.
+Počet stejných bodů na začátku okna tak skoro přímo odečítá, kolik snímků dráze chybí.
+Za třetí, nejdelší běh významných snímků nemůže být delší než dráha sama. Horní mez této
+featury je délka. A za čtvrté, maxima rostou s počtem pokusů. Maximum z 60 snímků je
+i u čistého šumu vyšší než maximum z 8 snímků. Model tyto stopy složí dohromady a délku
+fakticky zná (Spearman ρ skóre a délky {cz(prim['rho'], 2)}, měřeno na XGBoost skóre
+téhož běhu). To je známý strukturální únik. Právě jeho výhodu ruší within-band
+vyhodnocení v části 4.
 
 ## 4. Co se děje na pozadí: trénink a vyhodnocení
 
@@ -564,9 +572,17 @@ vznik a 1 zánik. Nejdelší souvislý běh významných snímků.
 \\item Mrtvé vstupy, 10 čísel. Sloty pre a post jsou vyhrazené pro vzorky před vznikem
 a po zániku dráhy. Korpus je neobsahuje. Jsou proto vždy nula a model je ignoruje.
 \\end{{itemize}}
-Délka dráhy mezi featurami záměrně není. Přesto ji modely ze vstupů rekonstruují, hlavně
-přes nulové souhrny střední fáze u~krátkých drah (Spearman $\\rho$ skóre--délka
-{cz(prim['rho'], 2)}, měřeno na XGBoost skóre téhož běhu). To je známý strukturální únik.
+Délka dráhy mezi featurami záměrně není. Přesto si ji modely ze vstupů zrekonstruují,
+a to čtyřmi cestami. Za prvé, dráha do 10 snímků nemá střední fázi, takže její čtyři
+souhrny jsou přesně nula. Čtyři nuly vedle sebe jsou spolehlivý prapor krátké dráhy.
+Za druhé, u~dráhy kratší než okno se body před vznikem drží na první naměřené hodnotě.
+Počet stejných bodů na začátku okna tak skoro přímo odečítá, kolik snímků dráze chybí.
+Za třetí, nejdelší běh významných snímků nemůže být delší než dráha sama. Horní mez této
+featury je délka. A za čtvrté, maxima rostou s~počtem pokusů. Maximum z~60 snímků je
+i u~čistého šumu vyšší než maximum z~8 snímků. Model tyto stopy složí dohromady a délku
+fakticky zná (Spearman $\\rho$ skóre a délky {cz(prim['rho'], 2)}, měřeno na XGBoost
+skóre téhož běhu). To je známý strukturální únik. Právě jeho výhodu ruší within-band
+vyhodnocení v~části~4.
 
 \\section*{{4\; Co se děje na pozadí: trénink a vyhodnocení}}
 Postup je pro každou konfiguraci stejný. Projděme ho v~pořadí, v~jakém běží.
