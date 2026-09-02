@@ -363,10 +363,10 @@ Podíl správných pořadí je AUC. Hodnota 0,5 je mince, 1,0 neomylnost. *Poole
 ze všech drah bez ohledu na délku. A přesně tady vzniká nafouknutí. Kdo hází kostkou
 dvacetkrát, hodí šestku téměř jistě. Kdo jen třikrát, spíše ne. Oba štítky jsou soutěže
 typu „povedlo se to někdy za život", takže s délkou rostou samy od sebe. Podíl SI+ stoupá
-napříč délkovými pásmy z 9 % na 63 % a podíl dynamin+ z 24 % na 95 % (tytéž filmy,
+napříč délkovými pásmy z 9 % na 68 % a podíl dynamin+ z 24 % na 95 % (tytéž filmy,
 protokol porovnání klasifikací). Model, který umí jen odhadnout délku, proto vyhrává
 většinu nesourodých dvojic, aniž o dynaminu cokoli ví. *Within-band* AUC tu výhodu ruší.
-Losuje jen dvojice drah podobné délky (12 kvantilových strat, vážení počtem dvojic).
+Losuje jen dvojice drah podobné délky (4 délková pásma: 6–9, 10–19, 20–39 a 40+ snímků, vážení počtem dvojic).
 A *gap* je prosté odečtení: pooled minus within-band. Je to přesně ten kus výkonu, který
 zmizí, jakmile modelu délku vezmeme. Na číslech primárního korpusu: pooled
 {cz(prim['auc'], 2)}, within-band {cz(prim['wb'], 2)}, gap +{cz(prim['gap'], 2)}.
@@ -388,12 +388,13 @@ AUC permutačního nullu. Tečkovaná čára je úroveň náhody.*
 **Diskuze:**
 
 Z tabulky 1 a obrázku 2 si odnesme čtyři věci. Za prvé, poolovaná AUC vypadá slušně, drží
-se kolem {cz(intr['auc'], 2)} až {cz(prim['auc'], 2)}. Jenže gap je všude +0,15 až +0,19.
-Většinu toho výkonu tedy nese délka. Za druhé, délkově očištěný signál existuje.
-Within-band AUC {cz(intr['wb'])} až {cz(prim['wb'])} leží nad nullem na
-{cz(prim['null_wb'])}. Je malý, ale není nula. Za třetí, filtrování nepomáhá. Přísnější
-filtry within-band AUC spíše snižují, protože odstraňují neúměrně mnoho produktivních
-drah. Proto se nefiltruje. A za čtvrté, end-observed čísla jsou vyšší než interior. Vyšší
+se kolem {cz(intr['auc'], 2)} až {cz(prim['auc'], 2)}. Jenže gap je všude +0,15 až +0,20.
+Většinu toho výkonu tedy nese délka. Za druhé,
+délkově očištěný signál existuje, ale jen u nefiltrovaných korpusů. Jejich within-band
+AUC {cz(intr['wb'])} až {cz(prim['wb'])} leží nad nullem na {cz(prim['null_wb'])}.
+Za třetí, filtrování škodí. Přísnější filtry odstraňují neúměrně mnoho produktivních
+drah a within-band AUC srážejí až na úroveň nullu (cluster < 2: 0,49). Proto se
+nefiltruje. A za čtvrté, end-observed čísla jsou vyšší než interior. Vyšší
 je ale korpus, ne model. Přidané dráhy s useknutým začátkem jsou delší a jasnější.
 
 ## 6. Čeho se regrese drží: koeficienty
@@ -449,7 +450,8 @@ srovnatelném korpusu tentýž obraz. Podrobnosti uvádí protokol detektoru.
    Kontrolou je permutovaný null a netrénovaná skóre.
 3. Poolovaná AUC ≈ {cz(prim['auc'], 2)} je z většiny délka (gap +{cz(prim['gap'], 2)}).
    Délkově očištěný signál je within-band AUC ≈ {cz(prim['wb'], 2)}, malý, ale nad nullem.
-4. Výsledek je robustní vůči filtrům. End-observed čísla zvedá složení korpusu, ne model.
+4. Filtry výsledek nezlepšují, přísné ho srážejí k nullu. End-observed čísla zvedá
+   složení korpusu, ne model.
 5. Koeficienty rovnocenné analýzy ukazují, že regrese stojí na trvale zvýšeném dynaminu
    během života, ne na terminální události. Referenční běh vlastní váhy neukládá.
 6. Model je interní diagnostika readoutu, ne dynaminová reference pro Figure 3.
@@ -607,11 +609,11 @@ pořadí. Podíl správných pořadí je AUC. Hodnota 0{{,}}5 je mince, 1{{,}}0 
 \\emph{{Pooled}} AUC losuje ze všech drah bez ohledu na délku. A přesně tady vzniká
 nafouknutí. Kdo hází kostkou dvacetkrát, hodí šestku téměř jistě. Kdo jen třikrát, spíše
 ne. Oba štítky jsou soutěže typu ,,povedlo se to někdy za život``, takže s~délkou rostou
-samy od sebe. Podíl SI+ stoupá napříč délkovými pásmy z~9\\,\\% na 63\\,\\% a podíl
+samy od sebe. Podíl SI+ stoupá napříč délkovými pásmy z~9\\,\\% na 68\\,\\% a podíl
 dynamin+ z~24\\,\\% na 95\\,\\% (tytéž filmy, protokol porovnání klasifikací). Model,
 který umí jen odhadnout délku, proto vyhrává většinu nesourodých dvojic, aniž o~dynaminu
 cokoli ví. \\emph{{Within-band}} AUC tu výhodu ruší. Losuje jen dvojice drah podobné délky
-(12 kvantilových strat, vážení počtem dvojic). A \\emph{{gap}} je prosté odečtení: pooled
+(4 délková pásma: 6--9, 10--19, 20--39 a 40+ snímků, vážení počtem dvojic). A \\emph{{gap}} je prosté odečtení: pooled
 minus within-band. Je to přesně ten kus výkonu, který zmizí, jakmile modelu délku vezmeme.
 Na číslech primárního korpusu: pooled {cz(prim['auc'], 2)}, within-band {cz(prim['wb'], 2)},
 gap +{cz(prim['gap'], 2)}. Z~výkonu {cz(prim['auc'], 2)} tedy {cz(prim['gap'], 2)} dodala
@@ -624,11 +626,11 @@ délka. Nad náhodou zbývá {cz(prim['wb'] - 0.5, 2)} skutečné dynaminové in
 
 Z~tabulky~\\ref{{tab:lr}} a obrázku~\\ref{{fig:lr}} si odnesme čtyři věci. Za prvé,
 poolovaná AUC vypadá slušně, drží se kolem {cz(intr['auc'], 2)} až {cz(prim['auc'], 2)}.
-Jenže gap je všude +0{{,}}15 až +0{{,}}19. Většinu toho výkonu tedy nese délka. Za druhé,
-délkově očištěný signál existuje. Within-band AUC {cz(intr['wb'])} až {cz(prim['wb'])}
-leží nad nullem na {cz(prim['null_wb'])}. Je malý, ale není nula. Za třetí, filtrování
-nepomáhá. Přísnější filtry within-band AUC spíše snižují, protože odstraňují neúměrně
-mnoho produktivních drah. Proto se nefiltruje. A za čtvrté, end-observed čísla jsou vyšší
+Jenže gap je všude +0{{,}}15 až +0{{,}}20. Většinu toho výkonu tedy nese délka. Za druhé, délkově očištěný signál existuje, ale jen u nefiltrovaných korpusů. Jejich
+within-band AUC {cz(intr['wb'])} až {cz(prim['wb'])} leží nad nullem na
+{cz(prim['null_wb'])}. Za třetí, filtrování škodí. Přísnější filtry odstraňují
+neúměrně mnoho produktivních drah a within-band AUC srážejí až na úroveň nullu
+(cluster $<$ 2: 0{{,}}49). Proto se nefiltruje. A za čtvrté, end-observed čísla jsou vyšší
 než interior. Vyšší je ale korpus, ne model. Přidané dráhy s~useknutým začátkem jsou delší
 a jasnější.
 
@@ -686,7 +688,8 @@ in-sample. Kontrolou je permutovaný null a netrénovaná skóre.
 \\item Poolovaná AUC $\\approx$ {cz(prim['auc'], 2)} je z~většiny délka (gap
 +{cz(prim['gap'], 2)}). Délkově očištěný signál je within-band AUC $\\approx$
 {cz(prim['wb'], 2)}, malý, ale nad nullem.
-\\item Výsledek je robustní vůči filtrům. End-observed čísla zvedá složení korpusu, ne model.
+\\item Filtry výsledek nezlepšují, přísné ho srážejí k~nullu. End-observed čísla zvedá
+složení korpusu, ne model.
 \\item Koeficienty rovnocenné analýzy ukazují, že regrese stojí na trvale zvýšeném dynaminu
 během života, ne na terminální události. Referenční běh vlastní váhy neukládá.
 \\item Model je interní diagnostika readoutu, ne dynaminová reference pro Figure~3.
