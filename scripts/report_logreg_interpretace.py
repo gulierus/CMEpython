@@ -197,12 +197,20 @@ nepotřebuje, a nadhodnocená tedy není.
 štítky. Musí vyjít u 0,5; kdyby ne, je v postupu únik. A netrénovaná skóre (výška peaku,
 peak − vlastní baseline) říkají, co zvládne jedno číslo bez jakéhokoli učení.
 
-**Délkově očištěné čtení (within-band).** Poolovaná AUC porovnává i krátkou dráhu
-s dlouhou; protože oba štítky s délkou rostou, část výkonu je jen délka. *Within-band*
-AUC proto porovnává pouze dvojice drah podobné délky (12 kvantilových strat, vážení počtem
-porovnatelných párů) a odpovídá na otázku: vyberme náhodně produktivní a abortivní dráhu
-stejné délky; jak často je model seřadí správně? Rozdíl pooled − within-band (gap) říká,
-kolik výkonu nesla délka.
+**Co je AUC, pooled a within-band.** AUC odpovídá na otázku: vyberme náhodně jednu
+produktivní a jednu abortivní dráhu; jak často jim model dá skóre ve správném pořadí?
+Hodnota 0,5 znamená házení mincí, 1,0 vždy správně. *Pooled* AUC losuje dvojice ze všech
+drah bez ohledu na délku; klidně tedy porovná produktivní dráhu žijící 100 s s abortivní
+žijící 12 s. Dlouhé dráhy jsou ale mnohem častěji produktivní, takže i model, který se
+naučí jen odhadovat délku, vyhraje většinu takových nesourodých dvojic, aniž by o dynaminu
+věděl cokoli. Pooled číslo proto míchá dynaminový signál s „umím poznat délku".
+*Within-band* AUC losuje dvojice pouze mezi drahami podobné délky (12 kvantilových strat,
+vážení počtem porovnatelných párů); otázka je pak férová, protože oběma drahám ve dvojici
+délka pomoci nemůže. Rozdíl pooled − within-band (gap) říká, kolik výkonu nesla délka.
+Na číslech primárního korpusu: pooled {cz(prim['auc'], 2)}, within-band
+{cz(prim['wb'], 2)}, gap +{cz(prim['gap'], 2)}; ze zdánlivého výkonu tedy
+{cz(prim['gap'], 2)} nese délka a nad náhodou zbývá {cz(prim['wb'] - 0.5, 2)} skutečné
+dynaminové informace.
 
 ## 5. Výsledky
 
@@ -399,12 +407,20 @@ zamíchané štítky. Musí vyjít u~0{{,}}5; kdyby ne, je v~postupu únik. A ne
 (výška peaku, peak $-$ vlastní baseline) říkají, co zvládne jedno číslo bez jakéhokoli
 učení.
 \\par
-\\textbf{{Délkově očištěné čtení (within-band).}} Poolovaná AUC porovnává i krátkou dráhu
-s~dlouhou; protože oba štítky s~délkou rostou, část výkonu je jen délka.
-\\emph{{Within-band}} AUC proto porovnává pouze dvojice drah podobné délky (12 kvantilových
-strat, vážení počtem porovnatelných párů) a odpovídá na otázku: vyberme náhodně produktivní
-a abortivní dráhu stejné délky; jak často je model seřadí správně? Rozdíl pooled $-$
-within-band (gap) říká, kolik výkonu nesla délka.
+\\textbf{{Co je AUC, pooled a within-band.}} AUC odpovídá na otázku: vyberme náhodně jednu
+produktivní a jednu abortivní dráhu; jak často jim model dá skóre ve správném pořadí?
+Hodnota 0{{,}}5 znamená házení mincí, 1{{,}}0 vždy správně. \\emph{{Pooled}} AUC losuje
+dvojice ze všech drah bez ohledu na délku; klidně tedy porovná produktivní dráhu žijící
+100\\,s s~abortivní žijící 12\\,s. Dlouhé dráhy jsou ale mnohem častěji produktivní, takže
+i model, který se naučí jen odhadovat délku, vyhraje většinu takových nesourodých dvojic,
+aniž by o~dynaminu věděl cokoli. Pooled číslo proto míchá dynaminový signál s~,,umím poznat
+délku``. \\emph{{Within-band}} AUC losuje dvojice pouze mezi drahami podobné délky
+(12 kvantilových strat, vážení počtem porovnatelných párů); otázka je pak férová, protože
+oběma drahám ve dvojici délka pomoci nemůže. Rozdíl pooled $-$ within-band (gap) říká,
+kolik výkonu nesla délka. Na číslech primárního korpusu: pooled {cz(prim['auc'], 2)},
+within-band {cz(prim['wb'], 2)}, gap +{cz(prim['gap'], 2)}; ze zdánlivého výkonu tedy
+{cz(prim['gap'], 2)} nese délka a nad náhodou zbývá {cz(prim['wb'] - 0.5, 2)} skutečné
+dynaminové informace.
 
 \\section*{{5\\; Výsledky}}
 {t}
