@@ -181,7 +181,7 @@ Mírná regularizace (L2, C = 1) drží váhy malé, aby model nesázel příli�
 sloupce.
 
 **Poctivé vyhodnocení (out-of-fold).** Kdyby se model hodnotil na drahách, na kterých se
-učil, vyšla by čísla přikrášlená. Filmy se proto rozdělí do 5 skupin a natrénuje se
+učil, vyšla by čísla nadhodnocená. Filmy se proto rozdělí do 5 skupin a natrénuje se
 5 nezávislých modelů, každý na 12 filmech. Každá dráha pak dostane skóre od toho modelu,
 který její film při tréninku neviděl. Dělí se po celých filmech, ne po drahách; dráhy
 z téže buňky jsou si totiž podobné a model by se jinak naučil poznávat buňku místo
@@ -190,8 +190,8 @@ biologie.
 **Práh a confusion matice.** Skóre je číslo mezi 0 a 1; aby vznikla tabulka
 správně/špatně, je třeba zvolit hranici. Youdenovo J volí hranici tam, kde je součet
 sensitivity a specificity nejvyšší. Hranice se ovšem vybírá na týchž skóre, která se pak
-hodnotí (*in-sample*); sens a spec jsou proto mírně přikrášlené. AUC žádnou hranici
-nepotřebuje, a přikrášlená tedy není.
+hodnotí (*in-sample*); sens a spec jsou proto mírně nadhodnocené. AUC žádnou hranici
+nepotřebuje, a nadhodnocená tedy není.
 
 **Kontroly.** Vedle modelu běží permutovaný null: tytéž featury, ale náhodně zamíchané
 štítky. Musí vyjít u 0,5; kdyby ne, je v postupu únik. A netrénovaná skóre (výška peaku,
@@ -382,7 +382,7 @@ produktivní. Trénink hledá váhy, se kterými tyto pravděpodobnosti nejlépe
 jednotlivé sloupce.
 \\par
 \\textbf{{Poctivé vyhodnocení (out-of-fold).}} Kdyby se model hodnotil na drahách, na
-kterých se učil, vyšla by čísla přikrášlená. Filmy se proto rozdělí do 5 skupin a natrénuje
+kterých se učil, vyšla by čísla nadhodnocená. Filmy se proto rozdělí do 5 skupin a natrénuje
 se 5 nezávislých modelů, každý na 12 filmech. Každá dráha pak dostane skóre od toho modelu,
 který její film při tréninku neviděl. Dělí se po celých filmech, ne po drahách; dráhy
 z~téže buňky jsou si totiž podobné a model by se jinak naučil poznávat buňku místo
@@ -391,8 +391,8 @@ biologie.
 \\textbf{{Práh a confusion matice.}} Skóre je číslo mezi 0 a 1; aby vznikla tabulka
 správně/špatně, je třeba zvolit hranici. Youdenovo J volí hranici tam, kde je součet
 sensitivity a specificity nejvyšší. Hranice se ovšem vybírá na týchž skóre, která se pak
-hodnotí (\\emph{{in-sample}}); sens a spec jsou proto mírně přikrášlené. AUC žádnou hranici
-nepotřebuje, a přikrášlená tedy není.
+hodnotí (\\emph{{in-sample}}); sens a spec jsou proto mírně nadhodnocené. AUC žádnou hranici
+nepotřebuje, a nadhodnocená tedy není.
 \\par
 \\textbf{{Kontroly.}} Vedle modelu běží permutovaný null: tytéž featury, ale náhodně
 zamíchané štítky. Musí vyjít u~0{{,}}5; kdyby ne, je v~postupu únik. A netrénovaná skóre
