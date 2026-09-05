@@ -129,8 +129,10 @@ def movie_layout(tf):
     Y = dims.get("Y", shape[-2] if len(shape) >= 2 else 1)
     X = dims.get("X", shape[-1])
     C = dims.get("C", 1)
-    # 'Z' zastupuje cas, pokud 'T' neni pritomno
-    time_axis = "T" if "T" in dims else ("Z" if "Z" in dims else None)
+    # 'Z' nebo 'I' zastupuje cas, pokud 'T' neni pritomno: ImageJ uklada
+    # jednokanalovou serii bez metadat jako Z-stack ci 'I' (image sequence)
+    time_axis = "T" if "T" in dims else ("Z" if "Z" in dims
+                                         else ("I" if "I" in dims else None))
     T = dims.get(time_axis, 1) if time_axis else 1
 
     lead = [a for a in axes if a not in ("Y", "X")]
