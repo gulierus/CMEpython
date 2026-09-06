@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""Protokol klatrinoveho experimentu podle zadani kolegu:
+"""Protokol klatrinoveho experimentu podle zadani kolegu (odpoved napred):
 1) nasamplovana klatrinova intenzita (cmeAnalysis + box-mean),
 2) prahova analyza samotne intenzity + replikace klasifikacniho
    experimentu se stitkem z dynaminove klasifikace.
-Hlavni otazka: lze dynaminovou produktivitu predikovat jen z klatrinu?
 
 Cisla prevzata z overenych behu (sample_clathrin_avg, clavg_threshold_analysis,
 Helios joby 238740/238741); zde se nic nepocita znovu.
@@ -30,18 +29,16 @@ from report_shape_story import md_to_tex  # noqa: E402  (prevod md -> tex)
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUT = os.path.join(ROOT, "Clathrin Analysis", "report")
-ORANGE, TEAL, GREY, PURPLE, DARK = "#d95f02", "#1b9e77", "0.45", "#7570b3", "#333333"
+ORANGE, TEAL, GREY, PURPLE = "#d95f02", "#1b9e77", "0.45", "#7570b3"
 
 RUN_AMP = os.path.join(ROOT, "CME_for_Helios", "runs", "clavg_amp_238740")
-RUN_BOX = os.path.join(ROOT, "CME_for_Helios", "runs", "clavg_box_238741")
 
 WB_BARS = [
     ("jas: nejlepší jedno číslo", 0.543, GREY),
     ("trénovaný model, box-mean", 0.595, TEAL),
     ("trénovaný model, amplituda", 0.657, ORANGE),
 ]
-LEN_WB = 0.596   # baseline "jen delka" ve stejnych pasmech
-LEN_POOLED = 0.810
+LEN_WB = 0.596
 
 
 def fig_summary(path: str) -> None:
@@ -66,43 +63,76 @@ def fig_summary(path: str) -> None:
     plt.close(fig)
 
 
-MD = """# Klatrinový experiment: predikce dynaminové produktivity z klatrinu
+MD = """# Klatrinový experiment: jde dynaminová produktivita předpovědět z klatrinu?
 
 Datum {date} · CMEpython {git} · vygenerováno `scripts/report_clavg_experiment.py`
 · zdrojové běhy: `sample_clathrin_avg.py`, `clavg_threshold_analysis.py`, Helios joby 238740/238741
 
-## 1. Zadání a hlavní otázka
+## 1. Zadání a odpověď
 
-Podle zadání kolegů: (1) nasamplovat klatrinovou intenzitu pro stejné trajektorie
-jamek metodou cmeAnalysis a pro srovnání i jednodušší metodou (průměr 5×5 s kompenzací
-blednutí) a uložit jako samostatný výstup; (2) zopakovat klasifikační experiment,
-kde vstupem je nově změřená klatrinová intenzita a referenčním štítkem dynaminová
-klasifikace produktivity, včetně zjištění, jak dobře rozlišuje samotná intenzita
-a jaký práh funguje nejlépe; rozhodovací práh volit Youdenovým J. Hlavní otázka:
-**lze produktivitu určenou z dynaminu predikovat také jen z klatrinové intenzity, nebo dynamin nese informaci, kterou klatrin nezachytí?**
+Zadání kolegů mělo dvě části. Za prvé: nasamplovat klatrinovou intenzitu pro
+stejné trajektorie jamek jako dosud, metodou cmeAnalysis i jednodušší metodou
+(průměr 5×5 s kompenzací blednutí), a uložit jako samostatný sdílený výstup.
+Za druhé: zopakovat klasifikační experiment, tentokrát s klatrinovou intenzitou
+jako vstupem a s produktivitou (Fate) určenou z dynaminu jako štítkem, včetně
+otázky, jak dobře rozlišuje samotná intenzita a jaký práh funguje nejlépe
+(práh volit Youdenovým J; vysvětlujeme v sekci 4). Hlavní otázka zadání:
+**nese dynamin informaci, kterou samotný klatrinový signál nezachytí?**
 
-Odpověď dopředu: **dynamin nahradit klatrinem nejde.** Samotné klatrinové číslo
-nerozliší nic, trénovaný model jen málo, a to ještě pouze s lepším ze dvou odečtů.
+Odpověď napřed, ve třech bodech:
 
-## 2. Data a štítek
+1. **Dynamin nahradit klatrinem nejde.** Nejlepší klatrinový model nese jen
+   malý kousek dynaminové informace: AUC po očištění o délku 0,657 proti
+   0,596, kterých dosáhne samotná délka života (měřítko vysvětluje sekce 2).
+   S jednodušším odečtem nezbývá nic (0,595 až 0,606, na úrovni délky).
+2. **Samotné klatrinové číslo nerozliší nic.** Žádný práh nefunguje (po
+   očištění o délku AUC 0,50 až 0,54). Nejlepší jednoduché pravidlo pro dynamin+
+   není o klatrinu, ale o délce života (aspoň 14 snímků).
+3. **Nasamplovaná data jsou uložena a připravena ke sdílení** bez ohledu na
+   výsledek klasifikace; všechny kontroly prošly.
 
-Nová data: jednokanálové klatrinové filmy (jeden snímek = průměr devíti surových
-SIM snímků), intenzity bez přeškálování. Ověřili jsme po pixelech, že starý
-dvoukanálový dataset je z těchto dat vyroben lineárním roztažením po filmech
-(faktory 43 až 149, shoda na zaokrouhlení); souřadnice dosavadních trajektorií
-proto sedí beze změny. Nové jednotky jsou poprvé srovnatelné mezi filmy.
+Zbytek dokumentu tyto věty dokládá. Než začneme, jedna sekce o tom, jak číst
+čísla.
 
-Štítek: dynamin+ / dynamin− podle výchozí klasifikace cmeAnalysis (test amplitudy
-proti vlastnímu okolí na každém snímku + binomické pravidlo; opravené masky).
-Z 33 750 drah je dynamin+ 56,8 %.
+## 2. Jak číst čísla v tomto dokumentu
 
-Jedno varování předem: podíl dynamin+ roste s délkou života jamky z 24 % na 95 %.
-Smíchaná (pooled) čísla proto vycházejí vysoko u čehokoli, co s délkou souvisí.
-Hodnotíme uvnitř čtyř délkových skupin a vždy srovnáváme s řádkem „jen délka";
-ten má smíchaně 0,810 a uvnitř skupin 0,596 (skupiny jsou hrubé, zbytek délky
-v nich zůstává). Model nese dynaminovou informaci teprve tehdy, když porazí 0,596.
+**Měřítko úspěchu.** Hra na dvojice: vylosujeme jednu dynamin+ a jednu dynamin−
+jamku a ptáme se, jestli model dal vyšší skóre té dynamin+. Podíl správně
+seřazených dvojic je AUC. Hodnota 0,5 znamená náhodu (model neví nic); 1,0
+znamená, že model seřadí správně každou dvojici.
+
+**Štítek.** Dynamin+ / dynamin− podle výchozí klasifikace cmeAnalysis
+(s opravenými maskami). Na každém snímku se testuje, jestli je amplituda
+dynaminu (jas tečky nad místním pozadím) prokazatelně nad šumem; takový
+snímek je „významný". Binomické pravidlo pak rozhodne podle počtu
+významných snímků; dynamin+ zhruba znamená víc významných snímků, než by
+při dané délce dráhy dal samotný šum (podrobný popis je v protokolu
+porovnání klasifikací, včetně opravených masek buňky). Jamku s prokázaným
+dynaminem čteme jako produktivní (Fate); dál píšeme dynamin+. Z 33 750
+jamek je dynamin+ 56,8 %.
+
+**Losujeme jen stejně dlouhé dvojice.** Podíl dynamin+ roste s délkou života
+jamky z 24 % na 95 %. Cokoli, co souvisí s délkou, proto vypadá ve smíchaných
+(pooled) číslech skvěle. Dvojice tedy losujeme jen uvnitř délkových skupin.
+Délku měříme v počtu snímků a skupiny jsou čtyři: 6 až 9, 10 až 19, 20 až 39
+a 40 a více snímků. AUC spočítáme v každé skupině zvlášť a do tabulek dáváme
+průměr vážený počtem dvojic. Ani skupiny délku neodstraní úplně. S hodnotou
+0,5 proto výsledky nesrovnáváme; správné srovnání je řádek **„jen délka"**:
+smíchaně dává 0,810 a uvnitř skupin 0,596. Model nese dynaminovou informaci
+teprve tehdy, když je nad ním.
+
+**Poctivost.** Filmů je 15 a rozdělili jsme je do pěti skupin. Model se vždy
+učil na čtyřech skupinách a skóre počítal na páté. Každá jamka je tedy
+hodnocena modelem, který její film při učení neviděl. Dělíme po celých
+filmech, protože jamky z jednoho filmu jsou si podobné a model by jinak
+poznával film, ne biologii.
 
 ## 3. Úkol 1: nasamplovaná klatrinová intenzita
+
+**Obě metody jsou spočítané pro všech 702 630 snímků 33 750 drah a uložené jako sdílený balíček `Clathrin Analysis/sampled/`.** Nová data jsou jednokanálové klatrinové filmy (jeden snímek = průměr devíti
+surových SIM snímků) s intenzitami bez přeškálování. Ověřili jsme po pixelech,
+že starý dvoukanálový dataset vznikl z těchto dat vynásobením všech intenzit filmu jednou konstantou (43 až 149, pro každý film jinou); souřadnice dosavadních trajektorií proto sedí
+beze změny a nové jednotky jsou poprvé srovnatelné mezi filmy.
 
 Pro všech 702 630 snímků 33 750 drah v 15 filmech jsme spočítali obě metody:
 
@@ -113,18 +143,20 @@ Pro všech 702 630 snímků 33 750 drah v 15 filmech jsme spočítali obě metod
    dvojexponenciálním fitem průměrů snímků (kompenzace blednutí). Fit
    zkonvergoval na všech 15 filmech.
 
-Kontroly: zarovnání souřadnic na nová data má shodu R² = 1,00000 v každém filmu;
-0 neplatných fitů. Obě metody spolu souvisejí, ale nejsou totéž (pořadová korelace
-0,77): metoda A měří tečku nad okolím, metoda B sbírá i rozptýlený signál v okénku.
+Kontroly: zarovnání souřadnic na nová data má shodu R² = 1,00000 v každém
+filmu; 0 neplatných fitů. Obě metody spolu souvisejí, ale neměří stejnou věc
+(pořadová korelace 0,77): metoda A měří tečku nad okolím, metoda B sbírá
+i rozptýlený signál v okénku.
 
-Výstup je uložen jako samostatný balíček `Clathrin Analysis/sampled/`
-(15 CSV + `manifest.json` + README s popisem sloupců a jednotek) a je připraven
-ke sdílení bez ohledu na výsledek klasifikace.
+Balíček obsahuje 15 CSV, `manifest.json`, `threshold_analysis.json` (zdroj
+tabulky v sekci 4) a README s popisem sloupců a jednotek.
 
-## 4. Úkol 2a: jak dobře rozlišuje samotná intenzita a jaký práh je nejlepší
+## 4. Úkol 2a: samotná intenzita a nejlepší práh
 
 Každou dráhu jsme zhustili do jednoho čísla (maximum nebo průměr přes život,
-pro obě metody) a hledali nejlepší práh Youdenovým J proti dynaminovému štítku:
+pro obě metody) a hledali nejlepší práh Youdenovým J, tedy práh s největším součtem sens
+a spec (sens = podíl správně zachycených dynamin+, spec = podíl správně
+odmítnutých dynamin−):
 
 | skóre dráhy | smíchaně | uvnitř skupin | nejlepší práh | sens | spec |
 |---|---|---|---|---|---|
@@ -134,19 +166,21 @@ pro obě metody) a hledali nejlepší práh Youdenovým J proti dynaminovému š
 | amplituda, průměr | 0,574 | 0,543 | 158 | 0,44 | 0,69 |
 | **jen délka života** | **0,810** | **0,596** | 14 snímků | 0,74 | 0,75 |
 
-**Diskuze:** žádný klatrinový práh nefunguje. Všechna intenzitní čísla jsou hluboko
-pod řádkem „jen délka" a po očištění o délku leží na minci (0,50 až 0,54).
-Paradoxně nejlepší jednoduché pravidlo pro dynamin+ vůbec není o klatrinu:
-„jamka žije aspoň 14 snímků" trefí sens 0,74 a spec 0,75. Jasnější jamka
-neznamená jamku s dynaminem.
+Prahy box-mean jsou bezrozměrné (násobky průměru snímku po kompenzaci
+blednutí), prahy amplitudy v jednotkách intenzity nového datasetu. Práh se
+volí na stejných datech, sens a spec jsou proto horní odhady.
+
+**Diskuze:** žádný klatrinový práh nefunguje. Všechna intenzitní čísla jsou
+hluboko pod řádkem „jen délka" a po očištění o délku leží na náhodě. Nejlepší
+jednoduché pravidlo pro dynamin+ není o klatrinu: „jamka žije aspoň 14 snímků"
+trefí sens 0,74 a spec 0,75. Jasnější jamka neznamená jamku s dynaminem.
 
 ## 5. Úkol 2b: replikace klasifikačního experimentu
 
-Trénovací kód kolegů jsme spustili beze změny řádku. Korpusy nesou klatrinovou
+**Trénovaný model na amplitudě přerůstá řádek délky o 0,06; box-mean varianta zůstává na jeho úrovni.** Postup: trénovací kód kolegů jsme
+spustili beze změny řádku. Korpusy nesou klatrinovou
 intenzitu (dvě varianty: amplituda a box-mean) a dynaminový štítek jsme vložili
-formátovým trikem: sloupec `cls` obsahuje 1,0 pro dynamin+ a 0,0 pro dynamin−,
-takže pravidlo „max(cls) > 0,7" vyrobí přesně dynaminový štítek. Stejné dělení
-po filmech, stejné modely, práh Youdenovým J.
+formátovým trikem: sloupec `cls` obsahuje 1,0 pro dynamin+ a 0,0 pro dynamin−. Pravidlo „max(cls) > 0,7", kterým si kód kolegů čte štítek, tak převezme náš dynaminový štítek bez jediné změny kódu. Stejné dělení po filmech, stejné modely, práh Youdenovým J. V tabulce jsou tři běžné učicí metody různé složitosti (stromy XGBoost, logistická regrese, malá neuronová síť); jejich detail není pro výsledek podstatný.
 
 | model | smíchaně (amp / box) | uvnitř skupin (amp / box) |
 |---|---|---|
@@ -156,69 +190,76 @@ po filmech, stejné modely, práh Youdenovým J.
 | jen výška vrcholu (bez učení) | 0,562 / 0,548 | 0,504 / 0,495 |
 | zamíchané štítky (kontrola) | 0,542 / 0,524 | 0,519 / 0,507 |
 
-U logistické regrese s Youdenovým prahem (amplituda: práh 0,503) vychází
-sens 0,79 a spec 0,70; u box-mean (práh 0,497) sens 0,77 a spec 0,70.
-Confusion matice všech modelů jsou na obrázku 1.
+U logistické regrese (u ní je práh na skóre nejčitelnější) vychází sens
+0,79 a spec 0,70 (amplituda, práh 0,503); u box-mean sens 0,77 a spec 0,70
+(práh 0,497). Práh se tu klade na výstupní skóre modelu mezi 0 a 1, ne na
+intenzitu jako v sekci 4; hodnota kolem 0,5 je proto přirozená.
+Confusion matice všech modelů jsou na obrázku 1, hlavní výsledek na obrázku 2.
 
 ![mozaika](fig1_mosaic.png)
 
-*Obrázek 1: Confusion matice všech modelů pro amplitudovou variantu (korpus bez
-filtru, end-observed). Každý panel je jeden model: řádky skutečný štítek
-(dynamin+ / dynamin−), sloupce verdikt modelu při Youdenově prahu. Čteme:
-levý horní roh = správně zachycení dynamin+, pravý dolní = správně odmítnutí
-dynamin−. Upozornění: práh se volí na týchž datech (in-sample), sens a spec
+*Obrázek 1: Confusion matice všech modelů pro amplitudovou variantu (jamky se zánikem uvnitř filmu, bez dalšího filtrování). Každý panel je jeden model: řádky skutečný štítek
+(dynamin+ / dynamin−), sloupce verdikt modelu při Youdenově prahu. Čteme: levý
+horní roh = správně zachycené dynamin+, pravý dolní = správně odmítnuté
+dynamin−. Upozornění: práh se volí na stejných datech (in-sample), sens a spec
 jsou proto horní odhady; a smíchaná čísla nafukuje délka.*
 
 ![souhrn](fig2_souhrn.png)
 
 *Obrázek 2: Hlavní výsledek po očištění o délku. Šedý sloupec je nejlepší
-jediné klatrinové číslo, zelený a oranžový trénované modely na dvou odečtech.
-Čárkovaná fialová čára je laťka „jen délka života" (0,596), tečkovaná je mince.
-Čteme: box-mean na laťku pouze dosáhne, amplituda ji přerůstá o 0,06.*
+jediné klatrinové číslo (amplituda, průměr přes život; 0,543), zelený a oranžový trénované modely na dvou odečtech.
+Čárkovaná fialová čára je řádek „jen délka života" (0,596), tečkovaná náhoda (0,5).
+Čteme: box-mean na řádek délky pouze dosáhne, amplituda ho přerůstá o 0,06.*
 
-**Diskuze:** smíchaná čísla kolem 0,80 vypadají dobře, ale jsou to délková čísla
-(řádek „jen délka" má 0,810 sám o sobě). Poctivé čtení je uvnitř skupin proti
-laťce 0,596:
-**box-mean varianta na laťku jen dosáhne (0,595), amplitudová ji přerůstá o 0,06 (0,657).**
-V časovém průběhu klatrinu tedy nějaká dynaminová
-informace je, ale malá, a s jednodušším odečtem se ztrácí úplně. Kontroly sedí:
-zamíchané štítky dávají minci, jediné netrénované číslo také.
+**Diskuze:** smíchaná čísla kolem 0,80 vypadají dobře, ale jsou to délková
+čísla; řádek „jen délka" má 0,810 sám o sobě. Poctivé čtení je uvnitř skupin
+proti řádku délky 0,596:
+**box-mean varianta zůstává na jeho úrovni (0,595 až 0,606), amplitudová ho přerůstá o 0,06 (0,657).**
+Síť dává u box-mean 0,606, o setinu nad řádkem délky; rozdíl této velikosti
+nečteme jako signál (viz Meze). V časovém průběhu klatrinu tedy trocha
+dynaminové informace je, ale malá, a s jednodušším odečtem se ztrácí. Kontroly sedí: zamíchané štítky dávají hodnoty u náhody (0,51 až 0,52;
+odchylka od 0,5 je v mezích šumu), jediné netrénované číslo také.
 
 ## 6. Odpověď na hlavní otázku
 
 | směr predikce | uvnitř skupin (AUC) |
 |---|---|
-| klatrin → tvarový štítek (SI); dřívější kontrola | 0,775 |
+| klatrin → tvarový štítek (SI); dřívější kontrola, starší dataset | 0,775 |
 | klatrin → dynamin (tento experiment, amplituda) | 0,657 |
 | klatrin → dynamin (tento experiment, box-mean) | 0,595 |
 | dynamin → SI (dřívější experimenty) | 0,585 |
-| jedno klatrinové číslo → dynamin | 0,50 |
+| jedno klatrinové číslo → dynamin | 0,50 až 0,54 |
+
+*Zdroje: 0,775 = pozitivní kontrola na starším datasetu (joby 238690 a 238691);
+0,585 = referenční běh kolegů, podrobně v dokumentu `interpretace_logreg.pdf`.*
 
 **Diskuze:** klatrin výborně vypovídá o tvaru vlastní struktury, ale o dynaminu
-ví jen málo — a naopak. Každý kanál nese především svou vlastní informaci.
+ví jen málo, a naopak. Každý kanál nese především svou vlastní informaci.
 **Dynamin proto nelze nahradit klatrinovou intenzitou**; dynaminové měření
 přináší informaci, kterou klatrinový signál nezachytí. To je odpověď na hlavní
 otázku zadání.
 
 ## 7. Meze
 
-Za prvé, Youdenův práh se volí na týchž datech, na kterých se hodnotí; sens
+Za prvé, Youdenův práh se volí na stejných datech, na kterých se hodnotí; sens
 a spec jsou horní odhady. Za druhé, délkové skupiny jsou hrubé a zbytek délky
-v nich zůstává; proto je laťkou 0,596, ne 0,5, a malé překročení laťky u box-mean
-nelze číst jako signál. Za třetí, dynaminový štítek je naše výchozí klasifikace
-cmeAnalysis; je dokumentovaná a reprodukovatelná, ale je to štítek, ne absolutní
-pravda. Za čtvrté, jde o 15 filmů jedné buněčné linie a jedny podmínky snímání.
+v nich zůstává; proto se srovnává s hodnotou 0,596, ne s 0,5, a malé překročení u box-mean
+nelze číst jako signál. Za třetí, dynaminový štítek je naše výchozí
+klasifikace cmeAnalysis; je dokumentovaná a reprodukovatelná, ale je to štítek,
+ne absolutní pravda. Za čtvrté, jde o 15 filmů jedné buněčné linie a jedny
+podmínky snímání.
 
 ## 8. Shrnutí
 
-1. Nasamplovaná klatrinová intenzita pro všechny dosavadní trajektorie je uložena
-   a připravena ke sdílení (obě metody, kontroly zarovnání R² = 1, šířka tečky
+1. Nasamplovaná klatrinová intenzita pro všechny dosavadní trajektorie je
+   uložena a připravena ke sdílení (obě metody, zarovnání R² = 1, šířka tečky
    1,6423 px, blednutí zkonvergovalo všude).
-2. Samotná klatrinová intenzita dynaminovou produktivitu nerozliší (uvnitř skupin
-   0,50 až 0,54); žádný práh nefunguje, nejlepší jednoduché pravidlo je délka
-   života ≥ 14 snímků.
-3. Trénovaný model: smíchaně ~0,80 = délka; uvnitř skupin box-mean 0,595 (= laťka
-   délky), amplituda 0,657 (+0,06 skutečné informace). Volba odečtu rozhoduje.
+2. Samotná klatrinová intenzita dynaminovou produktivitu nerozliší (uvnitř
+   skupin 0,50 až 0,54); žádný práh nefunguje, nejlepší jednoduché pravidlo je
+   délka života aspoň 14 snímků.
+3. Trénovaný model: smíchaně ~0,80 = délka; uvnitř skupin box-mean 0,595 až 0,606
+   (úroveň hodnoty jen z délky), amplituda 0,657 (+0,06 skutečné informace). Volba odečtu
+   rozhoduje.
 4. Odpověď na hlavní otázku: dynamin nahradit klatrinem nejde; dynamin nese
    informaci, kterou klatrinový signál nezachytí.
 """
