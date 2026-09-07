@@ -136,7 +136,8 @@ stejných datech, sens a spec jsou proto horní odhady.
 Trénovací kód kolegů běžel beze změny řádku; dynaminový štítek jsme vložili
 přes sloupec `cls` (1,0/0,0), který si jejich kód čte pravidlem
 „max(cls) > 0,7". Stejné dělení po filmech, práh Youdenovým J na skóre
-modelu; confusion matice všech modelů jsou na obrázku 2 na konci dokumentu.
+modelu; confusion matice logistické regrese, včetně smíchaných statistik
+a referenčního SI běhu vedle sebe, jsou na obrázku 2 na konci dokumentu.
 
 | model | smíchaně (amp / box) | uvnitř skupin (amp / box) |
 |---|---|---|
@@ -176,18 +177,24 @@ in-sample (sens a spec horní odhady); délkové skupiny jsou hrubé, proto se
 srovnává s 0,596; štítek je naše klasifikace, ne absolutní pravda; 15 filmů
 jedné buněčné linie.
 
-![mozaika](fig1_mosaic.png)
+![matice](fig_matice_logreg.png)
 
-*Obrázek 2: Confusion matice všech modelů, amplitudová varianta (jamky se
-zánikem uvnitř filmu, bez filtrování). Řádky skutečný štítek, sloupce verdikt
-modelu při Youdenově prahu; levý horní roh = správně zachycené dynamin+.*
+*Obrázek 2: Confusion matice logistické regrese, smíchaně (pooled) a po
+délkových skupinách. Řádky obrázku jsou tři experimenty: klatrin→dynamin
+s oběma odečty a pod nimi referenční dynamin→SI běh kolegů, takže klatrinové
+a SI matice lze číst vedle sebe. V každé matici jsou řádky skutečný štítek
+a sloupce verdikt; barva a procento udávají podíl v řádku. Pod maticí AUC,
+práh (každý panel má vlastní, Youdenovo J na daném výběru, volený in-sample)
+a sens/spec. Smíchané panely nafukuje délka; srovnává se po skupinách.*
 """
 
 
 def main() -> int:
     os.makedirs(OUT, exist_ok=True)
-    shutil.copy(os.path.join(RUN_AMP, "dynamin_v2_confusion_none_endobs.png"),
-                os.path.join(OUT, "fig1_mosaic.png"))
+    subprocess.run([sys.executable, os.path.join(ROOT, "scripts",
+                    "fig_logreg_matrices.py"),
+                    "--out", os.path.join(OUT, "fig_matice_logreg.png")],
+                   check=True)
     fig_summary(os.path.join(OUT, "fig2_souhrn.png"))
     git = subprocess.run(["git", "-C", ROOT, "rev-parse", "--short", "HEAD"],
                          capture_output=True, text=True).stdout.strip() or "?"
