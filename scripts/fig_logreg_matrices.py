@@ -78,6 +78,7 @@ def draw_panel(ax, m, neg, pos):
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--print", action="store_true", dest="do_print")
+    ap.add_argument("--dpi", type=int, default=160)
     ap.add_argument("--out", default=os.path.join(ROOT, "Clathrin Analysis",
                                                   "report", "fig_matice_logreg.png"))
     args = ap.parse_args()
@@ -108,7 +109,7 @@ def main() -> int:
     fig.tight_layout(rect=(0.06, 0.0, 1.0, 0.97))
     fig.subplots_adjust(hspace=0.95, wspace=0.45)
     os.makedirs(os.path.dirname(args.out), exist_ok=True)
-    fig.savefig(args.out, dpi=160)
+    fig.savefig(args.out, dpi=args.dpi)
     print(f"obrazek -> {args.out}")
     return 0
 
