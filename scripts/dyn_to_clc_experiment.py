@@ -147,12 +147,12 @@ def main() -> int:
 
     results = dict(_meta=dict(
         label_source="max clc_A per track (AVG dataset, sigma 1.6423)",
-        thr_prev=round(thr_prev, 2), thr_gmm=round(thr_gmm, 2),
+        thr_prev=round(thr_prev, 3), thr_gmm=round(thr_gmm, 2),
         gmm_means=[round(float(10 ** lo_m), 1), round(float(10 ** hi_m), 1)],
         si_prevalence_none_endobs=round(float(b0["y_si"].mean()), 4)))
 
     for name, thr in (("prev", thr_prev), ("gmm", thr_gmm)):
-        results[name] = dict(threshold=round(thr, 2), configs={})
+        results[name] = dict(threshold=round(thr, 3), configs={})
         for tag, b in built.items():
             y = (b["amp"] >= thr).astype(int)
             rec = evaluate(b["X"], y, b["film"], b["band"], b["folds"])
