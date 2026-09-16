@@ -228,20 +228,59 @@ takže samotné srovnání běží i bez MATLABu.
 
 ## Přehled skriptů
 
+Jádro pipeline (kroky 1–7):
+
 | skript | účel |
 |---|---|
 | `calibrate_dataset.py` | odhad σ PSF z dat, celý dataset najednou |
 | `measure_trajectories.py` | měření intenzity na drahách → `*-dynamin.csv` |
 | `classify_trajectories.py` | Aguetova klasifikace drah → `*-classified.csv` |
 | `cohort_analysis.py` | lifetime kohorty, křivky + grafy |
+| `plot_cohorts_kamenik_style.py` | kohorty ve stylu `plotIntensityCohorts` (dynamin+ / dynamin−) |
 | `compare_classifications.py` | confusion matrix SI vs. cmeAnalysis |
 | `compute_boxmean.py` | box-mean 5×5 readout na pozicích drah |
 | `report_classification_comparison.py` | protokol úlohy B (md/tex/pdf) |
 | `build_cme_corpus.py` | korpusy pro trénink detektoru (2 varianty) |
+| `build_clathrin_corpus.py` | klatrinový korpus jako pozitivní kontrola metody |
 | `report_detector_comparison.py` | protokol úlohy A: srovnání detektorů |
 | `validate_against_matlab.py` | numerické srovnání s MEX binárkou |
 | `dataset_findings.py` | reprodukce datasetových nálezů (bleaching, FP rate) |
 | `bench_measure.py` | benchmark měření |
+
+Klatrinový experiment (jednokanálový dataset `*_AVG.tif`):
+
+| skript | účel |
+|---|---|
+| `sample_clathrin_avg.py` | krok 1: klatrinová intenzita (PSF fit + box-mean) na pozicích drah |
+| `build_clavg_corpus.py` | krok 2: korpusy klatrin → dynaminový štítek |
+| `clavg_threshold_analysis.py` | prahová analýza klatrinové intenzity proti dynaminovému štítku |
+| `report_clavg_experiment.py` | protokol klatrinového experimentu |
+| `fig_logreg_matrices.py` | mozaika confusion matic logistické regrese (`--lang cz\|en`) |
+| `fig_summary_en.py` | souhrnný sloupcový graf (anglicky) |
+
+Experiment dynamin → klatrin (štítek z klatrinu místo SI):
+
+| skript | účel |
+|---|---|
+| `sample_clc_his_corpus.py` | klatrinová intenzita na pozicích korpusu spolupracujícího projektu |
+| `dyn_to_clc_experiment.py` | logistická regrese s klatrinovým štítkem (práh podle prevalence a GMM) |
+| `fig_dyn_to_clc.py` | obrázky experimentu (anglicky) |
+| `report_logreg_interpretace.py` | interpretace referenční analýzy logistickou regresí |
+
+Skripty obou experimentů čtou kód a korpus spolupracujícího projektu
+z `external/Shape2Fate_Fake2Emulate/` (větev `release/dynamin-confusion-v1`,
+v repozitáři není) a potřebují navíc `scikit-learn`.
+
+Nese průběh dynaminu informaci o osudu jamky?
+
+| skript | účel |
+|---|---|
+| `shape_phase1.py` | tvar křivky vs. délka vs. úroveň (tři modely) |
+| `shape_phase2.py` | model z množství a významnosti dynaminu |
+| `shape_phase3_cnn.py` | kontrola 1D konvoluční sítí nad surovými stopami (vyžaduje `torch`) |
+| `report_shape_story.py` | protokol všech tří testů |
+
+Patra 1–2 potřebují `scikit-learn`, patro 3 `torch`.
 
 ## Jak port vznikal a čím se liší od originálu
 
@@ -342,7 +381,9 @@ Repozitář obsahuje jen kód a dokumentaci. Lokálně (mimo git) žijí:
 | trajektorie a všechna naměřená CSV | `lr registered/trajectories/`, `lr registered/measured/` |
 | protokoly s výsledky (úlohy A i B) | `lr registered/comparison_report/`, `CME_for_Helios/report/` |
 | kohortové výstupy | `lr registered/cohorts/`, `out/` |
+| klatrinový dataset (`*_AVG.tif`), nasamplované intenzity a protokoly experimentů | `Clathrin Analysis/` |
 | balík pro výpočetní cluster (korpusy + cizí kód) | `CME_for_Helios/` |
+| klon spolupracujícího projektu Shape2Fate | `external/` |
 | klon cmeAnalysis a publikace | `cmeAnalysis/`, `Aguet13.pdf`, `mmc1.pdf` |
 | velké validační reference | `matlab/filter_ref.mat` aj. (přegenerují se) |
 

@@ -10,7 +10,8 @@ for k = 1:numel(fns)
 end
 
 fprintf('\n--- MEX fitGaussian2D ---\n');
-addpath(genpath('/Users/ruslanguliev/CMEpython/cmeAnalysis/software'));
+ROOT = fileparts(fileparts(mfilename('fullpath')));      % koren repozitare
+addpath(genpath(fullfile(ROOT, 'cmeAnalysis', 'software')));
 [yy, xx] = ndgrid(-6:6, -6:6);
 img = 100 + 500*exp(-((xx.^2 + yy.^2)/(2*1.5^2)));
 try

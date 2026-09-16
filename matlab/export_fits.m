@@ -2,10 +2,11 @@
 % aby se daly porovnat s Python portem. Zamerne obchazi fitGaussians2D.m,
 % ktery potrebuje chybejici toolboxy -- volame MEX primo.
 
-addpath(genpath('/Users/ruslanguliev/CMEpython/cmeAnalysis/software'));
+ROOT = fileparts(fileparts(mfilename('fullpath')));      % koren repozitare
+addpath(genpath(fullfile(ROOT, 'cmeAnalysis', 'software')));
 
-TIF = ['/Users/ruslanguliev/CMEpython/reconstructed registered/' ...
-       'U2OS_DYNAMIN_MSTAYGOLD_GREEN_SNAP_CLC_RED_DNMsiRNA_16_RR.tif'];
+TIF = fullfile(ROOT, 'reconstructed registered', ...
+               'U2OS_DYNAMIN_MSTAYGOLD_GREEN_SNAP_CLC_RED_DNMsiRNA_16_RR.tif');
 SIGMA = 2.6424;            % kanal 2, kalibrovano pres cely dataset
 NCH   = 3;
 FRAME = 51;                % 1-based -> odpovida Python frame 50
@@ -66,7 +67,7 @@ for k = 1:n
     rss_xy(k) = r2.RSS; std_xy(k) = r2.std;
 end
 
-save('/Users/ruslanguliev/CMEpython/matlab/mex_reference.mat', ...
+save(fullfile(ROOT, 'matlab', 'mex_reference.mat'), ...
      'wins','init','pos','res_Ac','res_Ac_std','res_xy','res_xy_std', ...
      'rss_Ac','rss_xy','std_Ac','std_xy','hAD_Ac','pv_Ac','SIGMA','iRange','w4','-v7');
 
